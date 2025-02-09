@@ -1,0 +1,6 @@
+.env
+src/ENV.zig
+
+.zig-cache/
+zig-out/
+allocator.zig
