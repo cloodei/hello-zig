@@ -10,30 +10,27 @@ pub fn Stack(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
         len: usize,
-        capacity: usize,
-        arr: [*]T,
+        arr: []T,
 
         const self = @This();
 
         pub fn init(comptime cap: usize) self {
             var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-            defer _ = gpa.deinit();
-
             const allocator = gpa.allocator();
+
             const mem = allocator.alloc(T, cap) catch {
                 panic("Halt!\n", .{});
             };
 
             return self {
-                .capacity = cap,
                 .len = 0,
-                .arr = mem.ptr,
+                .arr = mem,
                 .allocator = allocator
             };
         }
 
         pub inline fn deinit(this: *self) void {
-            this.allocator.free(this.arr[0..this.capacity]);
+            this.allocator.free(this.arr);
         }
 
         pub fn reserve(this: *self, size: usize) void {
@@ -42,23 +39,19 @@ pub fn Stack(comptime T: type) type {
             };
 
             this.deinit();
-
-            this.arr = reserved.ptr;
-            this.capacity = size;
+            this.arr = reserved;
         }
 
         pub fn push(this: *self, elem: T) void {
-            if(this.len == this.capacity) {
-                const capp = this.capacity * 2;
-                const newData = this.allocator.alloc(T, capp) catch {
+            if(this.len == this.arr.len) {
+                const newData = this.allocator.alloc(T, this.arr.len * 2) catch {
                     panic("Can't alloc my g\n", .{});
                 };
                 @memcpy(newData[0..this.len], this.arr);
 
                 this.deinit();
 
-                this.arr = newData.ptr;
-                this.capacity = capp;
+                this.arr = newData;
             }
             this.arr[this.len] = elem;
             this.len += 1;
@@ -71,6 +64,10 @@ pub fn Stack(comptime T: type) type {
 
         pub inline fn empty(this: *self) bool {
             return this.len == 0;
+        }
+
+        pub inline fn capacity(this: *self) usize {
+            return this.arr.len;
         }
     };
 }
