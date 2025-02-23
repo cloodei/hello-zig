@@ -1,0 +1,43 @@
+.{
+  // This is the default name used by packages depending on this one. For
+  // example, when a user runs `zig fetch --save <url>`, this field is used
+  // as the key in the `dependencies` table. Although the user can choose a
+  // different name, most users will stick with this provided value.
+  //
+  // It is redundant to include "zig" in this name because it is already
+  // within the Zig package namespace.
+  .name = "ZigCursor",
+
+  // This is a [Semantic Version](https://semver.org/).
+  // In a future version of Zig it will be used for package deduplication.
+  .version = "0.0.0",
+
+  // This field is optional.
+  // This is currently advisory only; Zig does not yet do anything
+  // with this value.
+  //.minimum_zig_version = "0.11.0",
+
+  // This field is optional.
+  // Each dependency must either provide a `url` and `hash`, or a `path`.
+  // `zig build --fetch` can be used to fetch all dependencies of a package, recursively.
+  // Once all dependencies are fetched, `zig build` no longer requires
+  // internet connectivity.
+  .dependencies = .{
+    .httpz = .{
+      .url = "git+https://github.com/karlseguin/http.zig?ref=master#7000f03ad3b328277c70e84d9d9e58076af0a91a",
+      .hash = "1220c4c8ea5cf4575ce7effde670cfa52e7773e62a92558361eb2636f68e57d53b90",
+    },
+    .pg = .{
+      .url = "git+https://github.com/karlseguin/pg.zig?ref=master#4ddae09948cb1563b394cd724b95de14cc88fc12",
+      .hash = "1220779868e6a2f387addec799f176342f5d9a0277139cdb51336e0c1c1b904fcffa",
+    },
+  },
+  .paths = .{
+    "build.zig",
+    "build.zig.zon",
+    "src",
+    // For example...
+    //"LICENSE",
+    //"README.md",
+  },
+}
