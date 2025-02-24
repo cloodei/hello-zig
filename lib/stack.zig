@@ -9,64 +9,57 @@ pub fn Stack(comptime T: type) type {
 
     return struct {
         allocator: std.mem.Allocator,
+        arena: std.heap.ArenaAllocator,  // Hope Arena allocation works?
         len: usize,
         arr: []T,
 
-        const self = @This();
+        const Self = @This();
 
-        pub fn init(comptime cap: usize) self {
-            var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-            const allocator = gpa.allocator();
+        pub fn init(comptime cap: usize) Self {
+            var aa = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+            const allocator = aa.allocator();
 
             const mem = allocator.alloc(T, cap) catch {
-                panic("Halt!\n", .{});
+                panic("Failed to allocate memory\n", .{});
             };
 
-            return self {
+            return Self {
                 .len = 0,
+                .arena = aa,
                 .arr = mem,
-                .allocator = allocator
+                .allocator = allocator,
             };
         }
 
-        pub inline fn deinit(this: *self) void {
-            this.allocator.free(this.arr);
+        pub fn deinit(this: *Self) void {
+            // this.allocator.free(this.arr);
+            this.arena.deinit();
         }
 
-        pub fn reserve(this: *self, size: usize) void {
-            const reserved = this.allocator.alloc(T, size) catch {
-                panic("Un-reservable\n", .{});
-            };
-
-            this.deinit();
-            this.arr = reserved;
-        }
-
-        pub fn push(this: *self, elem: T) void {
+        pub fn push(this: *Self, elem: T) void {
             if(this.len == this.arr.len) {
                 const newData = this.allocator.alloc(T, this.arr.len * 2) catch {
-                    panic("Can't alloc my g\n", .{});
+                    panic("Failed to allocate memory for push\n", .{});
                 };
                 @memcpy(newData[0..this.len], this.arr);
 
-                this.deinit();
-
+                // this.allocator.free(this.arr); AAllocator should clear all?
                 this.arr = newData;
             }
             this.arr[this.len] = elem;
             this.len += 1;
         }
 
-        pub inline fn pop(this: *self) T {
+        pub inline fn pop(this: *Self) T {
             this.len -= 1;
             return this.arr[this.len];
         }
 
-        pub inline fn empty(this: *self) bool {
+        pub inline fn empty(this: *Self) bool {
             return this.len == 0;
         }
 
-        pub inline fn capacity(this: *self) usize {
+        pub inline fn capacity(this: *Self) usize {
             return this.arr.len;
         }
     };

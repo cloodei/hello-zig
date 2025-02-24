@@ -56,4 +56,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("queue", queue_mod);
+
+    const bench_mod = b.createModule(.{
+        .root_source_file = b.path("curr/benchmark.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("benchmark", bench_mod);
 }

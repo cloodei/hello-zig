@@ -12,21 +12,44 @@ pub var RUN_TIME: u64 = 3 * std.time.ns_per_s;
 pub const Result = struct {
 	total: u64,
 	iterations: u64,
-	requested_bytes: usize,
 
 	// sorted, use samples()
 	_samples: [SAMPLE_SIZE]u64,
 
     const self = @This();
 
-	pub fn print(this: *self, name: []const u8) void {
-		std.debug.print("{s}\n", .{ name });
-		std.debug.print("  {d} iterations\t{d:.2}ns per iterations\n", .{ this.iterations, this.mean() });
-		std.debug.print("  {d:.2} bytes per iteration\n", .{ this.requested_bytes / this.iterations });
-		std.debug.print("  Worst: {d}ns\tMedian: {d:.2} ns\tStddev: {d:.2} ns\n\n", .{
-            this.worst(),
-            this.median(),
-            this.stdDev()
+	pub fn print(this: *self, fnName: []const u8) void {
+        var _mean = this.mean();
+        var _worst = this.worst();
+        var _median = this.median();
+        var _stddev = this.stdDev();
+
+        const mfmt  = rounder(f64, &_mean);
+        const wfmt  = rounder(u64, &_worst);
+        const mdfmt = rounder(u64, &_median);
+        const stfmt = rounder(f64, &_stddev);
+
+        var total: f64 = @floatFromInt(this.iterations);
+        total *= _mean;
+        const totalfmt = rounder(f64, &total);
+
+		std.debug.print("{s}:\n", .{
+            fnName
+        });
+		std.debug.print("  {d} iterations\n  {d:.2} {c}s per iterations\n  {d:.2} total {c}s\n", .{
+            this.iterations,
+            _mean,
+            mfmt,
+            total,
+            totalfmt
+        });
+		std.debug.print("  Worst: {d} {c}s  |  Median: {d:.2} {c}s  |  Stddev: {d:.2} {c}s\n\n", .{
+            _worst,
+            wfmt,
+            _median,
+            mdfmt,
+            _stddev,
+            stfmt
         });
 	}
 
@@ -68,30 +91,19 @@ pub const Result = struct {
 	}
 };
 
-pub fn run(func: TypeOfBenchmark(void)) !Result {
-	return runC({}, func);
-}
-
-pub fn runC(context: anytype, func: TypeOfBenchmark(@TypeOf(context))) !Result {
-	var gpa = std.heap.GeneralPurposeAllocator(.{ .enable_memory_limit = true }) {};
-	const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
-
+pub fn run(func: fn(allocator: std.mem.Allocator) anyerror!void) !Result {
 	var total: u64 = 0;
 	var iterations: usize = 0;
 	var timer = try Timer.start();
 	var samples = std.mem.zeroes([SAMPLE_SIZE]u64);
 
+    const allocator = std.heap.c_allocator;
+
 	while(true) {
 		iterations += 1;
 		timer.reset();
 
-		if(@TypeOf(context) == void) {
-			try func(allocator, &timer);
-		}
-        else {
-			try func(allocator, context, &timer);
-		}
+        try func(allocator);
 
 		const elapsed = timer.lap();
 		total += elapsed;
@@ -107,15 +119,21 @@ pub fn runC(context: anytype, func: TypeOfBenchmark(@TypeOf(context))) !Result {
 		.total = total,
 		._samples = samples,
 		.iterations = iterations,
-		.requested_bytes = gpa.total_requested_bytes,
 	};
 }
 
-fn TypeOfBenchmark(comptime T: type) type {
-	return switch(T) {
-		void => *const fn(Allocator, *Timer) anyerror!void,
-		else => *const fn(Allocator, T, *Timer) anyerror!void,
-	};
+fn rounder(comptime T: type, num: *T) u8 {
+    if(num.* < 1000)
+        return 'n';
+
+    num.* /= 1000;
+
+    if(num.* >= 1000) {
+        num.* /= 1000;
+        return 'm';
+    }
+    
+    return 'u';
 }
 
 fn resultLessThan(_: void, lhs: u64, rhs: u64) bool {
