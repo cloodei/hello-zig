@@ -1,61 +1,9 @@
 const std = @import("std");
-const Stack = @import("stack").Stack;
 const search = @import("DFS.zig");
 const benchmark = @import("benchmark");
+const sorts = @import("sorts");
+const random = @import("rand");
 
-
-fn contains(comptime T: type, arr: []T, target: T) bool {
-    for(arr) |val|
-        if(val == target)
-            return true;
-            
-    return false;
-}
-
-fn DFS(comptime T: type, allocator: std.mem.Allocator, matrix: [][]const T, comptime start: usize, comptime end: usize) ![]usize {
-    var open = std.ArrayList([]usize).init(allocator);
-    defer {
-        for(open.items) |path| {
-            allocator.free(path);
-        }
-        open.deinit();
-    }
-
-    var initial_path = try allocator.alloc(usize, 1);
-    initial_path[0] = start;
-    try open.append(initial_path);
-
-    while(open.items.len != 0) {
-        const current_path = open.pop();
-        defer allocator.free(current_path);
-
-        const len = current_path.len;
-        const current_node = current_path[len - 1];
-
-        if(current_node == end) {
-            const result = try allocator.dupe(usize, current_path);
-            return result;
-        }
-
-        var i = matrix.len;
-        while(i != 0) : (i -= 1) {
-            const nb = i - 1;
-            if(matrix[current_node][nb] != 0) {
-                if(!contains(usize, current_path, nb)) {
-                    var new = try allocator.alloc(usize, len + 1);
-                    errdefer allocator.free(new);
-
-                    @memcpy(new[0..len], current_path);
-                    new[len] = nb;
-
-                    try open.append(new);
-                }
-            }
-        }
-    }
-
-    return &[_]usize {};
-}
 
 var GRAPH = [_][]const u8 {
     &[_]u8 { 0,  4,  0,  12, 0,  0,  0,  0,  0,  0,  0,  0 },
@@ -73,32 +21,43 @@ var GRAPH = [_][]const u8 {
 };
 
 
-fn format(comptime T: type, arr: []T) void {
-    const n = arr.len - 1;
+fn format(comptime T: type, path: []T) void {
+    const n = path.len - 1;
     for(0..n) |i| {
-        std.debug.print("{} -> ", .{ arr[i] + 1 });
+        std.debug.print("{} -> ", .{ path[i] + 1 });
     }
-    std.debug.print("{}\n", .{ arr[n] + 1 });
+    std.debug.print("{}\n", .{ path[n] + 1 });
 }
 
-fn runDFS(allocator: std.mem.Allocator) !void {
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    // defer _ = gpa.deinit();
-    // const allocator = gpa.allocator();
-
-    const res = try DFS(u8, allocator, &GRAPH, 0, 11);
+fn runSearchDFS(allocator: std.mem.Allocator) !void {
+    const res = try search.DFS(u8, allocator, &GRAPH, 0, 11);
     allocator.free(res);
 }
 
+
+var arr: []i32 = undefined;
+
+fn runMS(_: std.mem.Allocator, timer: *std.time.Timer) !void {
+    arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
+    defer random.free_rand_arr(i32, arr);
+
+    std.debug.print("{}\n", .{
+        sorts.is_sorted(i32, arr)
+    });
+
+    timer.reset();
+    sorts.mergeSort(i32, arr);
+}
+
 pub fn main() !void {
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    // defer _ = gpa.deinit();
-    // const allocator = gpa.allocator();
+    // var y = try benchmark.run(runSearchDFS);
+    // y.print("Search DFS");
 
-    // const path = try DFS(u8, allocator, &GRAPH, 0, 11);
-    // defer allocator.free(path);
-    // format(usize, path);
+    // sorts.mergeSort(i32, arr);
+    // sorts.quickSort(i32, arr);
+    // sorts.heapSort (i32, arr);
 
-    var x = try benchmark.run(runDFS);
-    x.print("DFS");
+    var x = try benchmark.run(void, runMS);
+    x.print("MergeSort");
+    std.debug.print("{}\n", .{ sorts.is_sorted(i32, arr) });
 }

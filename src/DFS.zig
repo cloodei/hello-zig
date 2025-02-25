@@ -11,19 +11,17 @@ fn notContains(comptime T: type, arr: []T, target: T) bool {
     return true;
 }
 
-pub fn DFS(comptime T: type, allocator: std.mem.Allocator, GRAPH: [][]const T, start: usize, end: usize) !?[]usize {
-    var open = Stack([]usize).init(16);
+pub fn DFS(T: type, allocator: std.mem.Allocator, GRAPH: [][]const T, comptime start: usize, comptime end: usize) ![]usize {
+    var open = Stack([]usize).init(allocator, 16);
     defer {
-        // for(0..open.len) |i| {
-        //     open.allocator.free(open.arr[i]);
-        // }
+        for(open.items[0..open.len]) |item| {
+            allocator.free(item);
+        }
         open.deinit();
     }
 
-    var tmp = try open.allocator.alloc(usize, 1);
-    // errdefer open.allocator.free(tmp);
+    var tmp = try allocator.alloc(usize, 1);
     tmp[0] = start;
-    std.debug.print("{any}", .{ tmp });
     open.push(tmp);
 
     while(open.len != 0) {
@@ -32,26 +30,26 @@ pub fn DFS(comptime T: type, allocator: std.mem.Allocator, GRAPH: [][]const T, s
         const curr = path[len - 1];
 
         if(curr == end) {
-            const ret = try allocator.alloc(usize, len);
-            @memcpy(ret, path);
-            // open.allocator.free(path);
-            return ret;
+            return path;
         }
 
-        for(GRAPH[curr], 0..) |adj, nb| {
-            if(adj != 0) {
+        var i: usize = GRAPH.len;
+        while(i != 0) : (i -= 1) {
+            const nb = i - 1;
+            if(GRAPH[curr][nb] != 0) {
                 if(notContains(usize, path, nb)) {
-                    const newPath = try open.allocator.alloc(usize, len + 1);
+                    const newPath = try allocator.alloc(usize, len + 1);
                     @memcpy(newPath[0..len], path);
                     newPath[len] = nb;
                     open.push(newPath);
                 }
             }
         }
-        // open.allocator.free(path);
+
+        allocator.free(path);
     }
 
-    return null;
+    return &[_]usize {};
 }
 
 

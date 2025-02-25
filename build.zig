@@ -57,10 +57,24 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("queue", queue_mod);
 
+    const sorts_mod = b.createModule(.{
+        .root_source_file = b.path("lib/sorts.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("sorts", sorts_mod);
+
     const bench_mod = b.createModule(.{
         .root_source_file = b.path("curr/benchmark.zig"),
         .target = target,
         .optimize = optimize,
     });
     exe.root_module.addImport("benchmark", bench_mod);
+
+    const rand_mod = b.createModule(.{
+        .root_source_file = b.path("curr/ran.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("rand", rand_mod);
 }

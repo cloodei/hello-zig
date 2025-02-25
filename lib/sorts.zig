@@ -1,6 +1,27 @@
 const std = @import("std");
 
 
+pub fn is_sorted(comptime T: type, arr: []T) bool {
+    const n = arr.len;
+    var i: usize = 1;
+    while(i < n) : (i += 1)
+        if(arr[i] < arr[i - 1])
+            return false;
+    
+    return true;
+}
+
+pub fn is_reverse_sorted(comptime T: type, arr: []T) bool {
+    const n = arr.len;
+    var i: usize = 1;
+    while(i < n) : (i += 1)
+        if(arr[i] > arr[i - 1])
+            return false;
+    
+    return true;
+}
+
+
 fn insertionSort(comptime T: type, arr: []T, left: usize, right: usize) void {
     var i: usize = left + 1;
     while(i <= right) : (i += 1) {
@@ -58,27 +79,36 @@ pub fn quickSort(comptime T: type, arr: []T) void {
 
 pub fn mergeSort(comptime T: type, arr: []T) void {
     const n = arr.len;
-    var i: usize = 0;
-    while(i < n) : (i += 16) {
-        insertionSort(T, arr, i, min(i + 15, n));
+    if(n <= 16) {
+        insertionSort(T, arr, 0, n - 1);
+        return;
     }
 
+    const run = n - 16;
+    var i: usize = 0;
+    while(i < run) : (i += 16)
+        insertionSort(T, arr, i, i + 15);
+    if(i < n)
+        insertionSort(T, arr, i, n - 1);
+        
     const allocator = std.heap.c_allocator;
-    const buffer = try allocator.alloc(T, n);
+    const buffer = allocator.alloc(T, n) catch {
+        @panic("Can't allocate temp buffer, consider other in-place sorts!");
+    };
     defer allocator.free(buffer);
 
     var inBuffer = false;
     var width: usize = 16;
     var src = arr.ptr;
     var dst = buffer.ptr;
-    i = 0;
 
     while(width < n) : (width *= 2) {
-        while(i < n) : (i += width * 2) {
+        i = 0;
+        while(i < n) : (i += (width * 2)) {
             var curr = i;
             var l = i;
-            const mid = min(i + width, n);
-            const right = min(mid + width, n);
+            const mid: usize = min(i + width, n);
+            const right: usize = min(mid + width, n);
             var r = mid;
 
             while(l < mid and r < right) {
@@ -92,11 +122,16 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
                 }
                 curr += 1;
             }
-            while(l  <  mid) : ({ curr += 1; l += 1; }) {
+            
+            while(l < mid) {
                 dst[curr] = src[l];
+                curr += 1;
+                l += 1;
             }
-            while(r < right) : ({ curr += 1; r += 1; }) {
+            while(r < right) {
                 dst[curr] = src[r];
+                curr += 1;
+                r += 1;
             }
         }
         swap([*]T, &src, &dst);
@@ -144,6 +179,10 @@ pub fn heapSort(comptime T: type, arr: []T) void {
 
 pub inline fn min(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
     return if(a < b) a else b;
+}
+
+pub inline fn max(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
+    return if(a > b) a else b;
 }
 
 pub inline fn swap(comptime Type: type, a: *Type, b: *Type) void {
