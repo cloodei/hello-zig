@@ -35,18 +35,56 @@ fn runSearchDFS(allocator: std.mem.Allocator) !void {
 }
 
 
-var arr: []i32 = undefined;
-
-fn runMS(_: std.mem.Allocator, timer: *std.time.Timer) !void {
-    arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
-    defer random.free_rand_arr(i32, arr);
-
-    std.debug.print("{}\n", .{
-        sorts.is_sorted(i32, arr)
-    });
+fn runCheckMS(_: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
+    const arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
 
     timer.reset();
     sorts.mergeSort(i32, arr);
+    return arr;
+}
+
+fn runCheckHS(_: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
+    const arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
+
+    timer.reset();
+    sorts.heapSort(i32, arr);
+    return arr;
+}
+
+fn runCheckQS(_: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
+    const arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
+
+    timer.reset();
+    sorts.quickSort(i32, arr);
+    return arr;
+}
+
+fn runQS(_: std.mem.Allocator, timer: *std.time.Timer) !void{
+    const arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
+    defer random.free_rand_arr(i32, arr);
+
+    timer.reset();
+    sorts.quickSort(i32, arr);
+}
+
+fn runHS(_: std.mem.Allocator, timer: *std.time.Timer) !void{
+    const arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
+    defer random.free_rand_arr(i32, arr);
+
+    timer.reset();
+    sorts.heapSort(i32, arr);
+}
+
+fn runMS(_: std.mem.Allocator, timer: *std.time.Timer) !void{
+    const arr = random.rand_int_arr_in_range(i32, 1_000_000, -65_536, 16_000_000);
+    defer random.free_rand_arr(i32, arr);
+
+    timer.reset();
+    sorts.mergeSort(i32, arr);
+}
+
+fn check(array: []i32) !void {
+    std.debug.print("Sorted: {}\n", .{ sorts.is_sorted(i32, array) });
 }
 
 pub fn main() !void {
@@ -57,7 +95,11 @@ pub fn main() !void {
     // sorts.quickSort(i32, arr);
     // sorts.heapSort (i32, arr);
 
-    var x = try benchmark.run(void, runMS);
+    // var x = try benchmark.runWithReturn([]i32, runQS, check, true);
+    var x = try benchmark.run(runMS, true);
     x.print("MergeSort");
-    std.debug.print("{}\n", .{ sorts.is_sorted(i32, arr) });
+    x = try benchmark.run(runHS, true);
+    x.print("HeapSort");
+    x = try benchmark.run(runQS, true);
+    x.print("QuickSort");
 }

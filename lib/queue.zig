@@ -10,76 +10,83 @@ pub fn Queue(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
         len: usize,
-        capacity: usize,
         front: usize,
         back: usize,
-        arr: [*]T,
+        arr: []T,
 
-        const self = @This();
+        const Self = @This();
 
-        pub fn init(comptime cap: usize) self {
-            const allocator = std.heap.c_allocator;
-            const mem = allocator.alloc(T, cap) catch |err| {
-                panic("Nah: {s}", .{ err });
+        pub fn init(allocator: std.mem.Allocator) Self {
+            return initC(allocator, 1);
+        }
+
+        pub fn initC(allocator: std.mem.Allocator, comptime cap: usize) Self {
+            const mem = allocator.alloc(T, cap) catch {
+                @panic("Nah can't init brother");
             };
 
-            return self {
+            return Self {
                 .allocator = allocator,
                 .len = 0,
-                .capacity = cap,
                 .front = 0,
                 .back = 0,
-                .arr = mem.ptr
+                .arr = mem
             };
         }
 
-        pub inline fn deinit(this: *self) void {
-            this.allocator.free(this.arr[0..this.capacity]);
+        pub inline fn deinit(this: *Self) void {
+            this.allocator.free(this.arr);
         }
 
-        pub fn push(this: *self, elem: T) void {
-            if(this.len >= this.capacity - 4) {
-                const cap = this.capacity * 2;
-                const mem = this.allocator.alloc(T, cap) catch |err| {
+        pub fn push(this: *Self, elem: T) void {
+            const cap = this.capacity();
+            if(this.len >= cap - 1) {
+                if(!this.allocator.resize(this.arr, cap * 2)) {
+
+                }
+                const mem = this.allocator.alloc(T, cap * 2) catch |err| {
                     panic("Can't alloc my g: ", .{ err });
                 };
 
                 if(this.back > this.front or this.back == 0) {
-                    @memcpy(mem.ptr, this.arr[this.front..if(this.back != 0) this.back else this.capacity]);
+                    @memcpy(mem.ptr, this.arr[this.front..if(this.back != 0) this.back else cap]);
                 }
                 else {
-                    @memcpy(mem.ptr, this.arr[this.front..this.capacity]);
-                    @memcpy(mem.ptr + (this.capacity - this.front), this.arr[0..this.back]);
+                    @memcpy(mem.ptr, this.arr[this.front..cap]);
+                    @memcpy(mem.ptr + (cap - this.front), this.arr[0..this.back]);
                 }
 
                 this.deinit();
 
                 this.arr = mem.ptr;
-                this.capacity = cap;
                 this.front = 0;
                 this.back = this.len;
             }
             this.len += 1;
             this.arr[this.back] = elem;
-            this.back = (this.back + 1) % this.capacity;
+            this.back = (this.back + 1) % cap;
         }
 
-        pub inline fn pop(this: *self) T {
+        pub inline fn pop(this: *Self) T {
             this.len -= 1;
-            defer this.front = (this.front + 1) % this.capacity;
+            defer this.front = (this.front + 1) % this.capacity();
             return this.arr[this.front];
         }
         
-        pub inline fn empty(this: *self) bool {
+        pub inline fn empty(this: *Self) bool {
             return this.len == 0;
         }
 
-        pub inline fn first(this: *self) T {
+        pub inline fn first(this: *Self) T {
             return this.arr[this.front];
         }
 
-        pub inline fn last(this: *self) T {
+        pub inline fn last(this: *Self) T {
             return this.arr[this.back - 1];
+        }
+
+        pub inline fn capacity(this: *Self) usize {
+            return this.arr.len;
         }
     };
 }

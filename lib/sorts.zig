@@ -36,12 +36,12 @@ fn insertionSort(comptime T: type, arr: []T, left: usize, right: usize) void {
 }
 
 fn internal(comptime T: type, arr: []T, left: usize, right: usize) void {
-    if(right - left < 16) {
+    if(right - left < 24) {
         insertionSort(T, arr, left, right);
         return;
     }
 
-    const mid = (left + right) / 2;
+    const mid = (left + right) >> 1;
     if(arr[right] < arr[left])
         swap(T, &arr[right], &arr[left]);
     if(arr[mid] < arr[left])
@@ -55,9 +55,9 @@ fn internal(comptime T: type, arr: []T, left: usize, right: usize) void {
 
     while(true) {
         i += 1;
-        j += 1;
+        j -= 1;
         while(arr[i] < pivot) : (i += 1) {}
-        while(arr[j] > pivot) : (j += 1) {}
+        while(arr[j] > pivot) : (j -= 1) {}
         
         if(i >= j)
             break;
@@ -105,10 +105,10 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
     while(width < n) : (width *= 2) {
         i = 0;
         while(i < n) : (i += (width * 2)) {
-            var curr = i;
-            var l = i;
             const mid: usize = min(i + width, n);
             const right: usize = min(mid + width, n);
+            var curr = i;
+            var l = i;
             var r = mid;
 
             while(l < mid and r < right) {
