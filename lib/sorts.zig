@@ -1,27 +1,6 @@
 const std = @import("std");
 
 
-pub fn is_sorted(comptime T: type, arr: []T) bool {
-    const n = arr.len;
-    var i: usize = 1;
-    while(i < n) : (i += 1)
-        if(arr[i] < arr[i - 1])
-            return false;
-    
-    return true;
-}
-
-pub fn is_reverse_sorted(comptime T: type, arr: []T) bool {
-    const n = arr.len;
-    var i: usize = 1;
-    while(i < n) : (i += 1)
-        if(arr[i] > arr[i - 1])
-            return false;
-    
-    return true;
-}
-
-
 fn insertionSort(comptime T: type, arr: []T, left: usize, right: usize) void {
     var i: usize = left + 1;
     while(i <= right) : (i += 1) {

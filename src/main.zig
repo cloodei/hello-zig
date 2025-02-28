@@ -3,6 +3,7 @@ const search = @import("DFS.zig");
 const benchmark = @import("benchmark");
 const sorts = @import("sorts");
 const random = @import("rand");
+const search2 = @import("BFS.zig");
 
 
 var GRAPH = [_][]const u8 {
@@ -29,7 +30,7 @@ fn format(comptime T: type, path: []T) void {
     std.debug.print("{}\n", .{ path[n] + 1 });
 }
 
-fn runSearchDFS(allocator: std.mem.Allocator) !void {
+fn runSearchDFS(allocator: std.mem.Allocator, _: *std.time.Timer) !void {
     const res = try search.DFS(u8, allocator, &GRAPH, 0, 11);
     allocator.free(res);
 }
@@ -88,6 +89,10 @@ fn check(array: []i32) !void {
 }
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
     // var y = try benchmark.run(runSearchDFS);
     // y.print("Search DFS");
 
@@ -96,10 +101,14 @@ pub fn main() !void {
     // sorts.heapSort (i32, arr);
 
     // var x = try benchmark.runWithReturn([]i32, runQS, check, true);
-    var x = try benchmark.run(runMS, true);
-    x.print("MergeSort");
-    x = try benchmark.run(runHS, true);
-    x.print("HeapSort");
-    x = try benchmark.run(runQS, true);
-    x.print("QuickSort");
+    // var x = try benchmark.run(runMS, true);
+    // x.print("MergeSort");
+    // x = try benchmark.run(runHS, true);
+    // x.print("HeapSort");
+    // x = try benchmark.run(runQS, true);
+    // x.print("QuickSort");
+
+    const res = try search2.BFS(u8, allocator, &GRAPH, 0, 11);
+    format(usize, res);
+    allocator.free(res);
 }
