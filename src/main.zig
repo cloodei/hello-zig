@@ -35,6 +35,10 @@ fn runSearchDFS(allocator: std.mem.Allocator, _: *std.time.Timer) !void {
     allocator.free(res);
 }
 
+fn runSearchBFS(allocator: std.mem.Allocator, _: *std.time.Timer) !void {
+    const res = try search2.BFS(u8, allocator, &GRAPH, 0, 11);
+    allocator.free(res);
+}
 
 fn runCheckMS(_: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
     const arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
@@ -60,7 +64,7 @@ fn runCheckQS(_: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
     return arr;
 }
 
-fn runQS(_: std.mem.Allocator, timer: *std.time.Timer) !void{
+fn runQS(_: std.mem.Allocator, timer: *std.time.Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
     defer random.free_rand_arr(i32, arr);
 
@@ -68,7 +72,7 @@ fn runQS(_: std.mem.Allocator, timer: *std.time.Timer) !void{
     sorts.quickSort(i32, arr);
 }
 
-fn runHS(_: std.mem.Allocator, timer: *std.time.Timer) !void{
+fn runHS(_: std.mem.Allocator, timer: *std.time.Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, 1_000_000, 0, 1_048_576);
     defer random.free_rand_arr(i32, arr);
 
@@ -76,7 +80,7 @@ fn runHS(_: std.mem.Allocator, timer: *std.time.Timer) !void{
     sorts.heapSort(i32, arr);
 }
 
-fn runMS(_: std.mem.Allocator, timer: *std.time.Timer) !void{
+fn runMS(_: std.mem.Allocator, timer: *std.time.Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, 1_000_000, -65_536, 16_000_000);
     defer random.free_rand_arr(i32, arr);
 
@@ -89,9 +93,15 @@ fn check(array: []i32) !void {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    // defer _ = gpa.deinit();
+    // const allocator = gpa.allocator();
+
+    var x = try benchmark.run(runSearchBFS, true);
+    x.print("BFS");
+
+    var y = try benchmark.run(runSearchDFS, true);
+    y.print("DFS");
 
     // var y = try benchmark.run(runSearchDFS);
     // y.print("Search DFS");
@@ -107,8 +117,4 @@ pub fn main() !void {
     // x.print("HeapSort");
     // x = try benchmark.run(runQS, true);
     // x.print("QuickSort");
-
-    const res = try search2.BFS(u8, allocator, &GRAPH, 0, 11);
-    format(usize, res);
-    allocator.free(res);
 }

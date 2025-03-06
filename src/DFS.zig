@@ -6,8 +6,8 @@ const notContains = @import("utils").notContains;
 pub fn DFS(comptime T: type, allocator: std.mem.Allocator, GRAPH: [][]const T, comptime start: usize, comptime end: usize) ![]usize {
     var open = Stack([]usize).init(allocator, 16);
     defer {
-        for(open.items[0..open.len]) |item| {
-            allocator.free(item);
+        for(open.items[0..open.len]) |mem| {
+            allocator.free(mem);
         }
         open.deinit();
     }
@@ -21,9 +21,8 @@ pub fn DFS(comptime T: type, allocator: std.mem.Allocator, GRAPH: [][]const T, c
         const len = path.len;
         const curr = path[len - 1];
 
-        if(curr == end) {
+        if(curr == end)
             return path;
-        }
 
         var i: usize = GRAPH.len;
         while(i != 0) : (i -= 1) {

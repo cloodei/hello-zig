@@ -5,8 +5,18 @@ const notContains = @import("utils").notContains;
 pub fn BFS(comptime T: type, allocator: std.mem.Allocator, GRAPH: [][]const T, comptime start: usize, comptime finish: usize) ![]usize {
     var open = Queue([]usize).init(allocator, 16);
     defer {
-        for(open.arr[0..open.len]) |thing| {
-            allocator.free(thing);
+        if(open.front < open.back) {
+            for(open.items[open.front..open.back]) |thing| {
+                allocator.free(thing);
+            }
+        }
+        else {
+            for(open.items[open.front..open.capacity()]) |thing| {
+                allocator.free(thing);
+            }
+            for(open.items[0..open.back]) |thing| {
+                allocator.free(thing);
+            }
         }
         open.deinit();
     }

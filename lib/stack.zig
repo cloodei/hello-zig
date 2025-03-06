@@ -24,7 +24,6 @@ pub fn Stack(comptime T: type) type {
             const mem = allocator.alloc(T, cap) catch {
                 @panic("Failed to init the Stack");
             };
-            @memset(mem, undefined);
 
             return Self {
                 .len = 0,
@@ -48,16 +47,16 @@ pub fn Stack(comptime T: type) type {
             this.allocator.free(this.items);
         }
 
-        /// Adds 1 element to top of Stack, increments length (resizes if possible, else copy resize)
+        /// Adds 1 element to top of Stack, increments length (resizes in place if possible, else copy resize)
         pub fn push(this: *Self, elem: T) void {
             const len = this.len;
             if(this.items.len == len) {
                 const cap: usize = len * 2;
                 if(!this.allocator.resize(this.items, cap)) {
                     const newData = this.allocator.alloc(T, cap) catch {
-                        @panic("Can't push on Stack!");
+                        @panic("Can't resize Stack!");
                     };
-                    @memcpy(newData[0..len], this.items);
+                    @memcpy(newData.ptr, this.items);
 
                     this.deinit();
                     this.items = newData;
@@ -66,6 +65,11 @@ pub fn Stack(comptime T: type) type {
 
             this.len += 1;
             this.items[len] = elem;
+        }
+
+        /// You know!!
+        pub inline fn top(this: *Self) T {
+            return this.items[0];
         }
 
         /// Removes top element from Stack, decrement length
@@ -79,9 +83,54 @@ pub fn Stack(comptime T: type) type {
             return this.len == 0;
         }
 
-        /// Grab the entire Stack as Slice (does not copy!! both still own the array)
-        pub inline fn allocatedSlice(this: *Self) []T {
+        /// Returns inner array's maximum element occupancy
+        pub inline fn capacity(this: *Self) usize {
+            return this.items.len;
+        }
+
+        /// Grab the entire Stack as array (does not copy!! both still own the array)
+        pub inline fn getArr(this: *Self) []T {
             return this.items[0..this.len];
+        }
+
+        /// Get a new array as copy of the entire Stack
+        pub fn getNewArr(this: *Self) ![]T {
+            const buffer = try this.allocator.alloc(T, this.len);
+            try this.copyIntoArr(buffer);
+
+            return buffer;
+        }
+
+        /// Copy current Stack into array
+        pub fn copyIntoArr(this: *Self, buffer: []T) !void {
+            assert(buffer.len >= this.len);
+            @memcpy(buffer.ptr, this.items);
+        }
+
+        /// Copy current Stack into other Stack
+        pub fn copyInto(this: *Self, other: Stack(T)) !void {
+            assert(other.capacity() >= this.len);
+            try this.copyIntoArr(other.items);
+            other.len = this.len;
+        }
+
+        /// Get a new allocated copy of current Stack
+        pub fn copy(this: *Self) !Stack(T) {
+            const res = init(this.allocator, this.len);
+            try this.copyInto(res);
+
+            return res;
+        }
+
+        /// Take complete ownership of other Stack's memory, rendering it undefined\
+        /// Frees current Stack
+        pub fn take(this: *Self, other: Stack(T)) !void {
+            this.deinit();
+            this.items = other.items;
+            this.len = other.len;
+
+            other.items = null;
+            other.len = 0;
         }
     };
 }
