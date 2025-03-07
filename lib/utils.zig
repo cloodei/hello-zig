@@ -38,3 +38,18 @@ pub fn notContains(comptime T: type, arr: []T, target: T) bool {
             
     return true;
 }
+
+
+pub inline fn min(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
+    return if(a < b) a else b;
+}
+
+pub inline fn max(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
+    return if(a > b) a else b;
+}
+
+pub inline fn swap(comptime Type: type, a: *Type, b: *Type) void {
+    const t = a.*;
+    a.* = b.*;
+    b.* = t;
+}

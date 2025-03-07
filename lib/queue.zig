@@ -4,6 +4,9 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
+
+/// Double-ended Queue, stores allocator internally\
+/// Ensures contiguity on resize
 pub fn Queue(comptime T: type) type {
     comptime assert(@sizeOf(T) > 0);
 
@@ -18,7 +21,7 @@ pub fn Queue(comptime T: type) type {
 
         pub const _init = init(std.heap.c_allocator, 8);
 
-        /// Recommend GPA!\
+        /// (Recommend GPA!)\
         /// Init Queue with an Allocator and a starting cap
         pub fn init(allocator: std.mem.Allocator, comptime cap: usize) Self {
             comptime assert(cap != 0);
@@ -106,7 +109,7 @@ pub fn Queue(comptime T: type) type {
         }
 
         /// Copy the underlying Queue array to a destination buffer
-        pub fn copyInto(this: *Self, buffer: []T) !void {
+        pub fn copyIntoArr(this: *Self, buffer: []T) !void {
             assert(buffer.len >= this.len);
 
             if(this.front < this.back) {
@@ -121,32 +124,41 @@ pub fn Queue(comptime T: type) type {
         /// Get the full Queue as a new allocated array
         pub fn getNewArr(this: *Self) ![]T {
             const mem = try this.allocator.alloc(T, this.len);
-            try this.copyInto(mem);
+            try this.copyIntoArr(mem);
             return mem;
+        }
+
+        /// Copies current Queue into the buffer, sets length = current Queue length\
+        /// Stretches/resets Queue contiguity directly
+        pub fn copyInto(this: *Self, buffer: Queue(T)) !void {
+            try this.copyIntoArr(buffer.items);
+
+            buffer.front = 0;
+            buffer.len = this.len;
+            buffer.back = buffer.len;
         }
 
         /// Get a new allocated Queue as copy of current Queue\
         /// Both Queues still own the memory, deinit at caution
         pub fn copy(this: *Self) !Queue(T) {
-            const n = this.len;
-            const ret = init(this.allocator, n);
-            ret.len = n;
-            try this.copyInto(ret.items);
+            const ret = init(this.allocator, this.len);
+            try this.copyInto(ret);
 
             return ret;
         }
 
         /// Take ownership of another Queue, freeing current Queue\
         /// Old Queue is discarded, stolen q will be undefined
-        pub fn take(this: *Self, q: Queue(T)) void {
+        pub fn take(this: *Self, other: Queue(T)) void {
             this.deinit();
-            this.back = q.back;
-            this.front = q.front;
-            this.items = q.items;
-            this.len = q.len;
+            this.back = other.back;
+            this.front = other.front;
+            this.items = other.items;
+            this.len = other.len;
 
-            q.items.ptr = null;
-            q.items.len = 0;
+            other.len = 0;
+            other.items.len = 0;
+            other.items.ptr = null;
         }
     };
 }
