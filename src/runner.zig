@@ -4,21 +4,101 @@ const random = @import("rand");
 const sorts = @import("sorts");
 const utils = @import("utils");
 const benchmark = @import("benchmark");
-const GRAPH = @import("root").GRAPH;
+const memcpy = @cImport({
+    @cDefine("_NO_CRT_STDIO_INLINE", "1");
+    @cInclude("string.h");
+}).memcpy;
+
+const Allocator = std.mem.Allocator;
+const Timer = std.time.Timer;
 
 
-pub fn runSearchDFS(allocator: std.mem.Allocator, _: *std.time.Timer) !void {
-    const res = try search.DFS(u8, allocator, &GRAPH, 0, 11);
+pub fn cmemcpy(allocator: Allocator, timer: *Timer) !void {
+    const arr = random.rand_int_arr_in_range(i32, allocator, 5_000_000, 0, 80_000_000);
+    defer allocator.free(arr);
+    const buffer = try allocator.alloc(i32, arr.len);
+    defer allocator.free(buffer);
+
+    timer.reset();
+    _ = memcpy(buffer.ptr, arr.ptr, arr.len);
+}
+
+pub fn stdmemcpy(allocator: Allocator, timer: *Timer) !void {
+    const arr = random.rand_int_arr_in_range(i32, allocator, 5_000_000, 0, 80_000_000);
+    defer allocator.free(arr);
+    const buffer = try allocator.alloc(i32, arr.len);
+    defer allocator.free(buffer);
+
+    timer.reset();
+    @memcpy(buffer, arr);
+}
+
+pub fn run_cmemcpy_bench(comptime use_gpa: bool) !void {
+    var x = try benchmark.run(cmemcpy, use_gpa);
+    x.print("C Memcpy");
+}
+
+pub fn run_stdmemcpy_bench(comptime use_gpa: bool) !void {
+    var x = try benchmark.run(stdmemcpy, use_gpa);
+    x.print("Zig Memcpy");
+}
+
+pub fn run_memcpys_bench(comptime use_gpa: bool) !void {
+    try run_stdmemcpy_bench(use_gpa);
+    try run_cmemcpy_bench(use_gpa);
+}
+
+
+pub fn runSearchDFS(allocator: Allocator, _: *Timer) !void {
+    const res = try search.DFS(allocator, 0, 11);
     allocator.free(res);
 }
 
-pub fn runSearchBFS(allocator: std.mem.Allocator, _: *std.time.Timer) !void {
-    const res = try search.BFS(u8, allocator, &GRAPH, 0, 11);
+pub fn runSearchBFS(allocator: Allocator, _: *Timer) !void {
+    const res = try search.BFS(allocator, 0, 11);
+    allocator.free(res);
+}
+
+pub fn runSearchHCS(allocator: Allocator, _: *Timer) !void {
+    const res = try search.HCS(allocator, 0, 11);
     allocator.free(res);
 }
 
 
-pub fn runCheckMS(allocator: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
+pub fn run_DFS_bench(comptime use_gpa: bool) !void {
+    var x = try benchmark.run(runSearchDFS, use_gpa);
+    x.print("DFS");
+}
+
+pub fn run_BFS_bench(comptime use_gpa: bool) !void {
+    var x = try benchmark.run(runSearchBFS, use_gpa);
+    x.print("BFS");
+}
+
+pub fn run_HCS_bench(comptime use_gpa: bool) !void {
+    var x = try benchmark.run(runSearchHCS, use_gpa);
+    x.print("HCS");
+}
+
+pub fn run_all_search(comptime use_gpa: bool) !void {
+    try run_DFS_bench(use_gpa);
+    try run_BFS_bench(use_gpa);
+    try run_HCS_bench(use_gpa);
+}
+
+pub fn run_all_search_simul(comptime use_gpa: bool) !void {
+    const t1 = try std.Thread.spawn(.{}, run_DFS_bench, .{ use_gpa });
+    const t2 = try std.Thread.spawn(.{}, run_BFS_bench, .{ use_gpa });
+    const t3 = try std.Thread.spawn(.{}, run_HCS_bench, .{ use_gpa });
+
+    t1.join();
+    t2.join();
+    t3.join();
+}
+
+
+
+pub fn runCheckMS(allocator: Allocator, timer: *Timer) ![]i32 {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
 
     timer.reset();
@@ -26,7 +106,7 @@ pub fn runCheckMS(allocator: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
     return arr;
 }
 
-pub fn runCheckHS(allocator: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
+pub fn runCheckHS(allocator: Allocator, timer: *Timer) ![]i32 {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
 
     timer.reset();
@@ -34,7 +114,7 @@ pub fn runCheckHS(allocator: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
     return arr;
 }
 
-pub fn runCheckQS(allocator: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
+pub fn runCheckQS(allocator: Allocator, timer: *Timer) ![]i32 {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
 
     timer.reset();
@@ -42,7 +122,7 @@ pub fn runCheckQS(allocator: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
     return arr;
 }
 
-pub fn runCheckSS(allocator: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
+pub fn runCheckSS(allocator: Allocator, timer: *Timer) ![]i32 {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
 
     timer.reset();
@@ -50,7 +130,7 @@ pub fn runCheckSS(allocator: std.mem.Allocator, timer: *std.time.Timer) ![]i32 {
     return arr;
 }
 
-pub fn runQS(allocator: std.mem.Allocator, timer: *std.time.Timer) !void {
+pub fn runQS(allocator: Allocator, timer: *Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
     defer random.free_rand_arr(i32, allocator, arr);
 
@@ -58,7 +138,7 @@ pub fn runQS(allocator: std.mem.Allocator, timer: *std.time.Timer) !void {
     sorts.quickSort(i32, arr);
 }
 
-pub fn runHS(allocator: std.mem.Allocator, timer: *std.time.Timer) !void {
+pub fn runHS(allocator: Allocator, timer: *Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
     defer random.free_rand_arr(i32, allocator, arr);
 
@@ -66,7 +146,7 @@ pub fn runHS(allocator: std.mem.Allocator, timer: *std.time.Timer) !void {
     sorts.heapSort(i32, arr);
 }
 
-pub fn runMS(allocator: std.mem.Allocator, timer: *std.time.Timer) !void {
+pub fn runMS(allocator: Allocator, timer: *Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
     defer random.free_rand_arr(i32, allocator, arr);
 
@@ -74,7 +154,7 @@ pub fn runMS(allocator: std.mem.Allocator, timer: *std.time.Timer) !void {
     sorts.mergeSort(i32, arr);
 }
 
-pub fn runSS(allocator: std.mem.Allocator, timer: *std.time.Timer) !void {
+pub fn runSS(allocator: Allocator, timer: *Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
     defer random.free_rand_arr(i32, allocator, arr);
 
@@ -101,24 +181,25 @@ pub fn run_stdsort_bench(comptime use_gpa: bool) !void {
 }
 
 
-pub fn check(array: []i32) !void {
+pub fn checkSorted(array: []i32) !void {
     std.debug.print("Sorted: {}\n", .{ utils.is_sorted(i32, array) });
 }
 
+
 pub fn run_mergesort_bench_with_check(comptime use_gpa: bool) !void {
-    var x = try benchmark.runWithReturn([]i32, runCheckMS, check, use_gpa);
+    var x = try benchmark.runWithReturn([]i32, runCheckMS, checkSorted, use_gpa);
     x.print("MergeSort");
 }
 pub fn run_quicksort_bench_with_check(comptime use_gpa: bool) !void {
-    var x = try benchmark.runWithReturn([]i32, runCheckQS, check, use_gpa);
+    var x = try benchmark.runWithReturn([]i32, runCheckQS, checkSorted, use_gpa);
     x.print("QuickSort");
 }
 pub fn run_heapsort_bench_with_check(comptime use_gpa: bool) !void {
-    var x = try benchmark.runWithReturn([]i32, runCheckHS, check, use_gpa);
+    var x = try benchmark.runWithReturn([]i32, runCheckHS, checkSorted, use_gpa);
     x.print("HeapSort");
 }
 pub fn run_stdsort_bench_with_check(comptime use_gpa: bool) !void {
-    var x = try benchmark.runWithReturn([]i32, runCheckSS, check, use_gpa);
+    var x = try benchmark.runWithReturn([]i32, runCheckSS, checkSorted, use_gpa);
     x.print("STD Sort");
 }
 

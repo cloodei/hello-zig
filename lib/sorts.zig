@@ -1,4 +1,8 @@
 const std = @import("std");
+const memcpy = @cImport({
+    @cInclude("string.h");
+}).memcpy;
+
 const RUN = 24;
 
 
@@ -29,7 +33,6 @@ pub fn insertion_sort_functional(comptime T: type, arr: []T, left: usize, right:
         arr[j] = k;
     }
 }
-
 
 
 
@@ -104,8 +107,29 @@ pub fn quick_sort_functional(comptime T: type, arr: []T, comptime cmp: fn(T, T) 
 
 
 
+fn merge(comptime T: type, arr: [*]T, buffer: [*]T, left: usize, mid: usize, right: usize, cmp: fn(a: T, b: T) bool) void {
+    var i = left;
+    var curr = left;
+    var j = mid;
 
-/// More operational MergeSort, must take in allocator and comparator function
+    while(i < mid and j < right) : (curr += 1) {
+        if(cmp(arr[i], arr[j])) {
+            buffer[curr] = arr[i];
+            i += 1;
+        }
+        else {
+            buffer[curr] = arr[j];
+            j += 1;
+        }
+    }
+
+    while(i <  mid)  : ({ i += 1; curr += 1; })
+        buffer[curr] = arr[i];
+    while(j < right) : ({ j += 1; curr += 1; })
+        buffer[curr] = arr[j];
+}
+
+/// More operational MergeSort, must take in designated allocator for buffer allocation and a comparator function
 ///
 /// If comparison between a vs b returns true: a then b, false: b then a\
 /// Less than operator (a < b) sorts ascending, greater than sorts descending
@@ -143,11 +167,12 @@ pub fn merge_sort_functional(comptime T: type, allocator: std.mem.Allocator, arr
     }
 
     if(inBuffer)
-        @memcpy(arr, buffer);
+        _ = memcpy(arr.ptr, buffer.ptr, n);
 }
 
-/// TimSort-ish replica, O(n) best case, O(n log(n)) worst + avg case; Sorts ascension\
-/// O(n) space, though blazingly fast and stable!
+/// TimSort-ish replica, O(n) space. O(n) time best case, O(n log(n)) worst + avg case
+/// 
+/// Sorts ascension, blazingly fast and stable!
 pub fn mergeSort(comptime T: type, arr: []T) void {
     const n = arr.len;
     const lt = struct {
@@ -191,29 +216,8 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
     }
 
     if(inBuffer)
-        @memcpy(arr, buffer);
+        _ = memcpy(arr.ptr, buffer.ptr, n);
 }
-
-fn merge(comptime T: type, arr: [*]T, buffer: [*]T, left: usize, mid: usize, right: usize, cmp: fn(a: T, b: T) bool) void {
-    var i = left;
-    var curr = left;
-    var j = mid;
-
-    while(i < mid and j < right) : (curr += 1) {
-        if(cmp(arr[i], arr[j])) {
-            buffer[curr] = arr[i];
-            i += 1;
-        }
-        else {
-            buffer[curr] = arr[j];
-            j += 1;
-        }
-    }
-
-    @memcpy(buffer + curr, arr[i..mid]);
-    @memcpy(buffer + curr, arr[j..right]);
-}
-
 
 
 
@@ -236,6 +240,9 @@ fn heapify(comptime T: type, arr: []T, size: usize, root: usize, comptime cmp: f
     arr[hole] = tmp;
 }
 
+/// In-place O(1) space, O(n log(n)) time
+/// 
+/// Controllably stably fast + memory friendly
 pub fn heapSort(comptime T: type, arr: []T) void {
     const lt = struct {
         fn lt(a: T, b: T) bool {
@@ -256,7 +263,9 @@ pub fn heapSort(comptime T: type, arr: []T) void {
 }
 
 /// More operational HeapSort, must provide comparator function\
-/// In-place, O(n log(n)) every case
+/// In-place O(1) space, O(n log(n)) time
+/// 
+/// Controllably stably fast + memory friendly
 pub fn heap_sort_functional(comptime T: type, arr: []T, cmp: fn(T, T) bool) void {
     const n = arr.len;
     var i = n / 2;

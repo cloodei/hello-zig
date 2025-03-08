@@ -16,7 +16,7 @@ pub fn free_rand_arr(comptime T: type, allocator: std.mem.Allocator, arr: []T) v
 }
 
 pub fn rand_int_arr_in_range(comptime T: type, allocator: std.mem.Allocator, comptime size: usize, comptime min: T, comptime max: T) []T {
-    var buffer = allocator.alloc(T, size) catch unreachable;
+    var buffer = allocator.alloc(T, size) catch @panic("but nobody came...");
     const rand = random();
 
     for(0..size) |i|
@@ -38,7 +38,7 @@ pub inline fn rand_int_arr(comptime T: type, allocator: std.mem.Allocator, compt
 }
 
 pub fn rand_uint_arr_max(comptime T: type, allocator: std.mem.Allocator, comptime size: usize, comptime max: T) []T {
-    var buffer = allocator.alloc(T, size) catch unreachable;
+    var buffer = allocator.alloc(T, size) catch @panic("but nobody came...");
     const rand = random();
 
     for(0..size) |i|
@@ -52,7 +52,7 @@ pub inline fn rand_uint_arr(comptime T: type, allocator: std.mem.Allocator, comp
 }
 
 pub fn rand_float_arr_max(comptime size: usize, allocator: std.mem.Allocator) []f64 {
-    var buffer = allocator.alloc(f64, size) catch unreachable;
+    var buffer = allocator.alloc(f64, size) catch @panic("but nobody came...");
     const rand = random();
 
     for(0..size) |i|

@@ -39,6 +39,10 @@ pub fn notContains(comptime T: type, arr: []T, target: T) bool {
     return true;
 }
 
+pub fn contains(comptime T: type, arr: []T, target: T) bool {
+    return !notContains(T, arr, target);
+}
+
 
 pub inline fn min(a: anytype, b: @TypeOf(a)) @TypeOf(a) {
     return if(a < b) a else b;

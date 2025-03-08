@@ -50,21 +50,21 @@ pub const Result = struct {
         });
     }
 
-    pub fn samples(this: *self) []const u64 {
+    pub inline fn samples(this: *self) []const u64 {
         return this._samples[0..@min(this.iterations, SAMPLE_SIZE)];
     }
 
-    pub fn worst(this: *self) u64 {
+    pub inline fn worst(this: *self) u64 {
         const s = this.samples();
         return s[s.len - 1];
     }
 
-    pub fn best(this: *self) u64 {
+    pub inline fn best(this: *self) u64 {
         const s = this.samples();
         return s[0];
     }
 
-    pub fn mean(this: *self) f64 {
+    pub inline fn mean(this: *self) f64 {
         const s = this.samples();
 
         var total: u64 = 0;
@@ -74,12 +74,12 @@ pub const Result = struct {
         return @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(s.len));
     }
 
-    pub fn median(this: *self) u64 {
+    pub inline fn median(this: *self) u64 {
         const s = this.samples();
         return s[s.len / 2];
     }
 
-    pub fn stdDev(this: *self) f64 {
+    pub inline fn stdDev(this: *self) f64 {
         const m = this.mean();
         const s = this.samples();
 
@@ -94,6 +94,10 @@ pub const Result = struct {
 };
 
 
+/// Runs benchmarking on a function that returns a result type of ResType\
+/// Forwards the result to resFun, which must be able to consume the returned result
+/// 
+/// After RUN_TIME seconds, returns a Result object which can print the benchmarks with Result.print()
 pub fn runWithReturn(
     comptime ResType: type,
     func: fn(Allocator, *Timer) anyerror!ResType,
@@ -108,8 +112,8 @@ pub fn runWithReturn(
     defer _ = gpa.deinit();
     const allocator = if(use_gpa) gpa.allocator() else std.heap.c_allocator;
 
-	var timer = try Timer.start();
 	while(true) {
+    	var timer = try Timer.start();
         const res = try func(allocator, &timer);
 		const elapsed = timer.lap();
 
@@ -122,7 +126,7 @@ pub fn runWithReturn(
 
         try resFun(res);
 
-		if(total > RUN_TIME)
+		if(total >= RUN_TIME)
             break;
 	}
 
@@ -135,6 +139,9 @@ pub fn runWithReturn(
 	};
 }
 
+/// Runs benchmarking on a noreturn function
+/// 
+/// After RUN_TIME seconds, returns a Result object which can print the benchmarks with Result.print()
 pub fn run(func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime use_gpa: bool) !Result {
 	var total: u64 = 0;
 	var iterations: usize = 0;
@@ -144,8 +151,8 @@ pub fn run(func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime
     defer _ = gpa.deinit();
     const allocator = if(use_gpa) gpa.allocator() else std.heap.c_allocator;
 
-	var timer = try Timer.start();
 	while(true) {
+	    var timer = try Timer.start();
         try func(allocator, &timer);
 		const elapsed = timer.lap();
 
@@ -153,7 +160,7 @@ pub fn run(func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime
 		iterations += 1;
 		total += elapsed;
 
-		if(total > RUN_TIME)
+		if(total >= RUN_TIME)
             break;
 	}
 

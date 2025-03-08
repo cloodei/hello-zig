@@ -4,45 +4,57 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
+/// C MEMCPY IS 10X FASTER AND BETTER (less safe), USE WHENEVER POSSIBLE!!
+const memcpy = @cImport({
+    @cInclude("string.h");
+}).memcpy;
+
 
 /// Internally stores Allocator, the list [ ] of items, and the current length\
 /// Has an internal lessThan operator function, can be exchanged if needed
 /// Can be used interchangeably as a Vector
 pub fn Stack(comptime T: type) type {
     comptime assert(@sizeOf(T) > 0);
-    const lessThan = struct {
-        pub inline fn lessThan(a: T, b: T) bool {
+    const lt = struct {
+        fn lt(a: T, b: T) bool {
             return a < b;
         }
-    }.lessThan;
+    }.lt;
 
     return struct {
-        allocator: std.mem.Allocator,
-        len: usize,
-        items: []T,
-
         const Self = @This();
-        pub var lt = lessThan;
+
+        allocator: std.mem.Allocator,
+        items: []T,
+        len: usize,
+
+        /// If T is [ ]const u8 or [ ]u8, string_representation decides if the
+        /// formatter will print an ascii character or a u8 number
+        /// 
+        /// Defaults to true (prints string of u8 ascii characters), set to false to print numbers naturally
+        string_representation: bool,
+
 
         /// Highly recommend GPA allocator!\
         /// Init Stack with an Allocator and starting cap
-        pub fn init(allocator: std.mem.Allocator, comptime cap: usize) Self {
-            comptime assert(cap != 0);
+        pub fn init(allocator: std.mem.Allocator, comptime Capacity: usize) Self {
+            comptime assert(Capacity != 0);
             
-            const mem = allocator.alloc(T, cap) catch {
+            const mem = allocator.alloc(T, Capacity) catch {
                 @panic("Failed to init the Stack");
             };
 
             return Self {
                 .len = 0,
                 .items = mem,
-                .allocator = allocator
+                .allocator = allocator,
+                .string_representation = true,
             };
         }
 
         /// Init Stack with a starting cap
-        pub inline fn initCap(comptime cap: usize) Self {
-            return init(std.heap.c_allocator, cap);
+        pub inline fn initCap(comptime Capacity: usize) Self {
+            return init(std.heap.c_allocator, Capacity);
         }
 
         /// Init Stack with Allocator
@@ -59,12 +71,12 @@ pub fn Stack(comptime T: type) type {
         pub fn push(this: *Self, elem: T) void {
             const len = this.len;
             if(this.capacity() == len) {
-                const cap: usize = len * 2;
-                if(!this.allocator.resize(this.items, cap)) {
-                    const newData = this.allocator.alloc(T, cap) catch {
+                const newCap: usize = len * 2;
+                if(!this.allocator.resize(this.items, newCap)) {
+                    const newData = this.allocator.alloc(T, newCap) catch {
                         @panic("Can't resize Stack!");
                     };
-                    @memcpy(newData.ptr, this.items);
+                    _ = memcpy(newData.ptr, this.items.ptr, this.len);
 
                     this.deinit();
                     this.items = newData;
@@ -75,14 +87,24 @@ pub fn Stack(comptime T: type) type {
             this.items[len] = elem;
         }
 
-        /// Removes top element from Stack (no safeguards!!) and returns it, decrement length
+        pub fn insert(this: *Self, _: T, _: usize) void {
+            const len = this.len;
+            if(this.capacity() == len) {
+                const newCap: usize = len * 2;
+                if(!this.allocator.resize(this.items, newCap)) {
+                    
+                }
+            }
+        }
+
+        /// Removes top element from Stack and returns it, decrement length (no safeguards!! can panic and error out)
         pub inline fn pop(this: *Self) T {
             this.len -= 1;
             return this.items[this.len];
         }
 
         /// You know!!
-        pub inline fn top(this: *Self) T {
+        pub inline fn top(this: Self) T {
             return this.items[this.len - 1];
         }
 
@@ -94,24 +116,24 @@ pub fn Stack(comptime T: type) type {
         }
 
         /// Check if length is 0
-        pub inline fn empty(this: *Self) bool {
+        pub inline fn empty(this: Self) bool {
             return this.len == 0;
         }
 
         /// Returns inner array's maximum element occupancy
-        pub inline fn capacity(this: *Self) usize {
+        pub inline fn capacity(this: Self) usize {
             return this.items.len;
         }
 
-        /// Grab the entire Stack as array (does not copy!! both still own 1 array)
-        pub inline fn arr(this: *Self) []T {
+        /// Grab the entire Stack as array (does not copy!! both still own the 1 array)
+        pub inline fn arr(this: Self) []T {
             return this.items[0..this.len];
         }
 
         /// Copy current Stack into array
         pub fn copyIntoArr(this: *Self, buffer: []T) !void {
             assert(buffer.len >= this.len);
-            @memcpy(buffer.ptr, this.items[0..this.len]);
+            _ = memcpy(buffer.ptr, this.items.ptr, this.len);
         }
 
         /// Get a new array as copy of the entire Stack
@@ -148,12 +170,13 @@ pub fn Stack(comptime T: type) type {
             other.items.ptr = null;
         }
 
-        /// Sorts entire Stack with comparator function in ascending (default < operator)
+
+        /// Sorts entire Stack in ascending (default < operator)
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
         pub fn sort(this: *Self) void {
-            qsort(T, this.items[0..this.len], this.lt);
+            qsort(T, this.items[0..this.len], lt);
         }
 
         /// Return a new allocated copy of the Stack, sorted in ascending order (default < operator)
@@ -162,7 +185,7 @@ pub fn Stack(comptime T: type) type {
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
         pub fn toSortedArr(this: *Self) ![]T {
             const res = try this.getNewArr();
-            qsort(T, res, this.lt);
+            qsort(T, res, lt);
 
             return res;
         }
@@ -175,11 +198,43 @@ pub fn Stack(comptime T: type) type {
             qsort(T, this.items[0..this.len], cmp);
         }
 
+        /// Return a new allocated copy of the Stack, sorted according to comparator
+        /// 
+        /// If comparison between a vs b returns true: a then b, false: b then a\
+        /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
         pub fn toSortedArrSpec(this: *Self, cmp: fn(T, T) bool) ![]T {
             const res = try this.getNewArr();
             qsort(T, this.items, cmp);
-            
             return res;
+        }
+
+
+        /// Formats the Stack for I/O writers, prints each element in their respected formats [ elem, elem, ... ]
+        pub fn format(this: Self, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.writeAll("[ ");
+
+            for(this.items[0..this.len], 0..) |item, i| {
+                if(i > 0)
+                    try writer.writeAll(", ");
+
+                const info = @typeInfo(T);
+                switch(info) {
+                    .pointer => |p| {
+                        if(p.size == .slice and p.child == u8) {
+                            if(this.string_representation) {
+                                try writer.print("\"{s}\"", .{ item });
+                            }
+                            else {
+                                try writer.print("{any}", .{ item });
+                            }
+                        }
+                    },
+                    .array  => try writer.print("{any}", .{ item }),
+                    else    => try writer.print("{}", .{ item })
+                }
+            }
+
+            try writer.writeAll(" ]");
         }
     };
 }
@@ -204,7 +259,7 @@ fn internal(comptime T: type, arr: []T, left: usize, right: usize, cmp: fn(T, T)
     if(cmp(arr[mid], arr[left]))
         swap(T, &arr[left], &arr[mid]);
     if(cmp(arr[mid], arr[right]))
-        swap(T, &arr[mid], &arr[right]);
+        swap(T, &arr[mid],  &arr[right]);
 
     const pivot = arr[right];
     var i = left;
@@ -225,7 +280,7 @@ fn internal(comptime T: type, arr: []T, left: usize, right: usize, cmp: fn(T, T)
     internal(T, arr, left, i - 1, cmp);
     internal(T, arr, i + 1, right, cmp);
 }
-pub fn qsort(comptime T: type, arr: []T, comptime cmp: fn(T, T) bool) void {
+fn qsort(comptime T: type, arr: []T, cmp: fn(T, T) bool) void {
     const n = arr.len;
 
     if(n > 1)
