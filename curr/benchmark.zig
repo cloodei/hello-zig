@@ -20,11 +20,13 @@ pub const Result = struct {
     pub fn print(this: *self, fnName: []const u8) void {
         var _mean = this.mean();
         var _worst: f64 = @floatFromInt(this.worst());
+        var _best: f64 = @floatFromInt(this.best());
         var _median: f64 = @floatFromInt(this.median());
         var _stddev = this.stdDev();
 
         const mfmt  = rounder(&_mean);
         const wfmt  = rounder(&_worst);
+        const bfmt  = rounder(&_best);
         const mdfmt = rounder(&_median);
         const stfmt = rounder(&_stddev);
 
@@ -36,9 +38,11 @@ pub const Result = struct {
             _mean,
             mfmt,
         });
-        std.debug.print("  Worst: {d:.2} {c}s  |  Median: {d:.2} {c}s  |  Stddev: {d:.2} {c}s\n\n", .{
+        std.debug.print("  Worst: {d:.2} {c}s  |  Best: {d:.2} {c}s  |  Median: {d:.2} {c}s  |  Stddev: {d:.2} {c}s\n\n",.{
             _worst,
             wfmt,
+            _best,
+            bfmt,
             _median,
             mdfmt,
             _stddev,
@@ -53,6 +57,11 @@ pub const Result = struct {
     pub fn worst(this: *self) u64 {
         const s = this.samples();
         return s[s.len - 1];
+    }
+
+    pub fn best(this: *self) u64 {
+        const s = this.samples();
+        return s[0];
     }
 
     pub fn mean(this: *self) f64 {
@@ -89,31 +98,29 @@ pub fn runWithReturn(
     comptime ResType: type,
     func: fn(Allocator, *Timer) anyerror!ResType,
     resFun: fn(ResType) anyerror!void,
-    comptime ok: bool
+    comptime use_gpa: bool
 ) !Result {
 	var total: u64 = 0;
 	var iterations: usize = 0;
-	var timer = try Timer.start();
 	var samples = std.mem.zeroes([SAMPLE_SIZE]u64);
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
     defer _ = gpa.deinit();
-    const allocator = if(ok) std.heap.c_allocator else gpa.allocator();
+    const allocator = if(use_gpa) gpa.allocator() else std.heap.c_allocator;
 
+	var timer = try Timer.start();
 	while(true) {
-		iterations += 1;
-
-        timer.reset();
         const res = try func(allocator, &timer);
-
 		const elapsed = timer.lap();
-		samples[@mod(iterations, SAMPLE_SIZE)] = elapsed;
-		total += elapsed;
-
-        try resFun(res);
 
         defer if(@typeName(ResType)[0] == '[')
             allocator.free(res);
+
+		samples[iterations % SAMPLE_SIZE] = elapsed;
+		iterations += 1;
+		total += elapsed;
+
+        try resFun(res);
 
 		if(total > RUN_TIME)
             break;
@@ -128,24 +135,22 @@ pub fn runWithReturn(
 	};
 }
 
-pub fn run(func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime ok: bool) !Result {
+pub fn run(func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime use_gpa: bool) !Result {
 	var total: u64 = 0;
 	var iterations: usize = 0;
-	var timer = try Timer.start();
 	var samples = std.mem.zeroes([SAMPLE_SIZE]u64);
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
     defer _ = gpa.deinit();
-    const allocator = if(ok) std.heap.c_allocator else gpa.allocator();
+    const allocator = if(use_gpa) gpa.allocator() else std.heap.c_allocator;
 
+	var timer = try Timer.start();
 	while(true) {
-		iterations += 1;
-
-        timer.reset();
         try func(allocator, &timer);
-
 		const elapsed = timer.lap();
-		samples[@mod(iterations, SAMPLE_SIZE)] = elapsed;
+
+		samples[iterations % SAMPLE_SIZE] = elapsed;
+		iterations += 1;
 		total += elapsed;
 
 		if(total > RUN_TIME)

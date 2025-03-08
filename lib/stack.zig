@@ -75,15 +75,22 @@ pub fn Stack(comptime T: type) type {
             this.items[len] = elem;
         }
 
-        /// You know!!
-        pub inline fn top(this: *Self) T {
-            return this.items[0];
-        }
-
-        /// Removes top element from Stack, decrement length
+        /// Removes top element from Stack (no safeguards!!) and returns it, decrement length
         pub inline fn pop(this: *Self) T {
             this.len -= 1;
             return this.items[this.len];
+        }
+
+        /// You know!!
+        pub inline fn top(this: *Self) T {
+            return this.items[this.len - 1];
+        }
+
+        /// Removes top element from Stack and returns it, decrement length
+        pub inline fn pop_safe(this: *Self) ?T {
+            if(this.len == 0)
+                return null;
+            return this.pop();
         }
 
         /// Check if length is 0
@@ -124,14 +131,14 @@ pub fn Stack(comptime T: type) type {
         }
 
         /// Copy current Stack into other Stack
-        pub fn copyInto(this: *Self, other: Self) !void {
+        pub fn copyInto(this: *Self, other: *Self) !void {
             try this.copyIntoArr(other.items);
             other.len = this.len;
         }
 
         /// Take complete ownership of other Stack's memory, rendering it undefined\
         /// Frees current Stack
-        pub fn take(this: *Self, other: Self) !void {
+        pub fn take(this: *Self, other: *Self) !void {
             this.deinit();
             this.items = other.items;
             this.len = other.len;
@@ -146,7 +153,7 @@ pub fn Stack(comptime T: type) type {
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
         pub fn sort(this: *Self) void {
-            quick_sort_functional(T, this.items[0..this.len], this.lt);
+            qsort(T, this.items[0..this.len], this.lt);
         }
 
         /// Return a new allocated copy of the Stack, sorted in ascending order (default < operator)
@@ -155,7 +162,7 @@ pub fn Stack(comptime T: type) type {
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
         pub fn toSortedArr(this: *Self) ![]T {
             const res = try this.getNewArr();
-            quick_sort_functional(T, res, this.lt);
+            qsort(T, res, this.lt);
 
             return res;
         }
@@ -165,12 +172,12 @@ pub fn Stack(comptime T: type) type {
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than sorts descending
         pub fn sortSpec(this: *Self, cmp: fn(T, T) bool) void {
-            quick_sort_functional(T, this.items[0..this.len], cmp);
+            qsort(T, this.items[0..this.len], cmp);
         }
 
         pub fn toSortedArrSpec(this: *Self, cmp: fn(T, T) bool) ![]T {
             const res = try this.getNewArr();
-            quick_sort_functional(T, this.items, cmp);
+            qsort(T, this.items, cmp);
             
             return res;
         }
@@ -218,7 +225,7 @@ fn internal(comptime T: type, arr: []T, left: usize, right: usize, cmp: fn(T, T)
     internal(T, arr, left, i - 1, cmp);
     internal(T, arr, i + 1, right, cmp);
 }
-pub fn quick_sort_functional(comptime T: type, arr: []T, comptime cmp: fn(T, T) bool) void {
+pub fn qsort(comptime T: type, arr: []T, comptime cmp: fn(T, T) bool) void {
     const n = arr.len;
 
     if(n > 1)
