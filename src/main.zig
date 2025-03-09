@@ -26,7 +26,9 @@ pub fn main() !void {
     // try runner.run_all_sorts_bench_simul(false);
     // try runner.run_all_sorts_bench(false);
 
-    try runner.run_memcpys_bench(true);
+    // try runner.run_memcpys_bench(true);
 
-    // try runner.run_all_search(false);
+    try runner.run_all_search(false);
+    
+    // Liên hệ hỗ trợ, Quản lý giỏ hàng và Hậu mãi của actor Người dùng;
 }

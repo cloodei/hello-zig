@@ -101,7 +101,7 @@ pub fn main() !void {
     while(running) {
         var event: sdl.Event = undefined;
         while(sdl.pollEvent(&event)) {
-            switch (event.type) {
+            switch(event.type) {
                 .quit => running = false,
                 else => {},
             }
@@ -127,9 +127,8 @@ pub fn main() !void {
             });
         }
 
-        for(projectiles.items) |*proj| {
+        for(projectiles.items) |*proj|
             proj.y -= proj.speed;
-        }
 
         var j: usize = 0;
         while(j < projectiles.items.len) {
@@ -159,37 +158,37 @@ pub fn main() !void {
 
         var k: usize = 0;
         while(k < projectiles.items.len) {
-        var hit = false;
-        var l: usize = 0;
-        while(l < obstacles.items.len) : (l += 1) {
-            const proj = projectiles.items[k];
-            const obs = obstacles.items[l];
-            if(proj.x < obs.x + obs.width and
-            proj.x > obs.x and
-            proj.y < obs.y + obs.height and
-            proj.y > obs.y) {
-                _ = projectiles.swapRemove(k);
-                _ = obstacles.swapRemove(l);
-                hit = true;
-                break;
+            var hit = false;
+            var l: usize = 0;
+            while(l < obstacles.items.len) : (l += 1) {
+                const proj = projectiles.items[k];
+                const obs = obstacles.items[l];
+                if(proj.x < obs.x + obs.width and
+                proj.x > obs.x and
+                proj.y < obs.y + obs.height and
+                proj.y > obs.y) {
+                    _ = projectiles.swapRemove(k);
+                    _ = obstacles.swapRemove(l);
+                    hit = true;
+                    break;
+                }
             }
-        }
-        if(!hit)
-            k += 1;
+
+            if(!hit)
+                k += 1;
         }
 
-        // Render
         renderer.setDrawColor(0, 0, 0, 255);
         renderer.clear();
 
         drawRect(renderer, player.x, player.y, player.width, player.height, 0, 255, 0);
 
         for(obstacles.items) |obs| {
-        drawRect(renderer, obs.x, obs.y, obs.width, obs.height, 255, 0, 0);
+            drawRect(renderer, obs.x, obs.y, obs.width, obs.height, 255, 0, 0);
         }
 
         for(projectiles.items) |proj| {
-        drawRect(renderer, proj.x, proj.y, 5, 10, 255, 255, 255);
+            drawRect(renderer, proj.x, proj.y, 5, 10, 255, 255, 255);
         }
 
         renderer.present();

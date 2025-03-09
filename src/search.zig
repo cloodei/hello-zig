@@ -162,5 +162,5 @@ pub fn HCS(allocator: std.mem.Allocator, comptime start: usize, comptime end: us
 
 
 // pub fn BSS(allocator: std.mem.Allocator, comptime start: usize, comptime end: usize) ![]usize {
-
+//     var open = Stack([]usize).init(allocator, 16);
 // }

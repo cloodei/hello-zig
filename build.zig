@@ -79,7 +79,7 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("benchmark", bench_mod);
 
     const rand_mod = b.createModule(.{
-        .root_source_file = b.path("curr/ran.zig"),
+        .root_source_file = b.path("curr/rand.zig"),
         .target = target,
         .optimize = optimize,
     });

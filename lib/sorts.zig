@@ -3,6 +3,7 @@ const memcpy = @cImport({
     @cInclude("string.h");
 }).memcpy;
 
+const Allocator = std.mem.Allocator;
 const RUN = 24;
 
 
@@ -36,27 +37,25 @@ pub fn insertion_sort_functional(comptime T: type, arr: []T, left: usize, right:
 
 
 
-fn internal(comptime T: type, arr: []T, left: usize, right: usize, cmp: fn(T, T) bool) void {
+fn internal(comptime T: type, arr: []T, left: usize, right: usize, comptime cmp: fn(T, T) bool) void {
     if(right - left < RUN) {
         insertion_sort_functional(T, arr, left, right, cmp);
         return;
     }
 
-    const mid = (left + right) >> 1;
+    const mid: usize = (left + right) / 2;
     if(cmp(arr[right], arr[left]))
         swap(T, &arr[left], &arr[right]);
     if(cmp(arr[mid], arr[left]))
         swap(T, &arr[left], &arr[mid]);
     if(cmp(arr[mid], arr[right]))
-        swap(T, &arr[mid], &arr[right]);
+        swap(T, &arr[mid],  &arr[right]);
 
     const pivot = arr[right];
-    var i = left;
-    var j = right;
+    var i: usize = left + 1;
+    var j: usize = right - 1;
 
-    while(true) {
-        i += 1;
-        j -= 1;
+    while(true) : ({ i += 1; j -= 1; }) {
         while(cmp(arr[i], pivot)) i += 1;
         while(cmp(pivot, arr[j])) j -= 1;
 
@@ -66,7 +65,7 @@ fn internal(comptime T: type, arr: []T, left: usize, right: usize, cmp: fn(T, T)
     }
 
     swap(T, &arr[i], &arr[right]);
-    internal(T, arr, left, i - 1, cmp);
+    internal(T, arr, left,  i - 1, cmp);
     internal(T, arr, i + 1, right, cmp);
 }
 
@@ -79,15 +78,10 @@ fn internal(comptime T: type, arr: []T, left: usize, right: usize, cmp: fn(T, T)
 pub fn quickSort(comptime T: type, arr: []T) void {
     const n = arr.len;
 
-    if(n > 1) {
-        const lt = struct {
-            fn lt(a: T, b: T) bool {
-                return a < b;
-            }
-        }.lt;
-
-        internal(T, arr, 0, n - 1, lt);
-    }
+    if(n > 1) 
+        internal(T, arr, 0, n - 1, comptime struct {
+            fn lt(a: T, b: T) bool { return a < b; }
+        }.lt);
 }
 
 /// Hoare partition with comparator function, O(n ^ 2) worst case, O(n log(n)) otherwise\
@@ -107,7 +101,7 @@ pub fn quick_sort_functional(comptime T: type, arr: []T, comptime cmp: fn(T, T) 
 
 
 
-fn merge(comptime T: type, arr: [*]T, buffer: [*]T, left: usize, mid: usize, right: usize, cmp: fn(a: T, b: T) bool) void {
+fn merge(comptime T: type, arr: [*]T, buffer: [*]T, left: usize, mid: usize, right: usize, comptime cmp: fn(a: T, b: T) bool) void {
     var i = left;
     var curr = left;
     var j = mid;
@@ -133,7 +127,7 @@ fn merge(comptime T: type, arr: [*]T, buffer: [*]T, left: usize, mid: usize, rig
 ///
 /// If comparison between a vs b returns true: a then b, false: b then a\
 /// Less than operator (a < b) sorts ascending, greater than sorts descending
-pub fn merge_sort_functional(comptime T: type, allocator: std.mem.Allocator, arr: []T, comptime cmp: fn(a: T, b: T) bool) !void {
+pub fn merge_sort_functional(comptime T: type, allocator: Allocator, arr: []T, comptime cmp: fn(T, T) bool) !void {
     const n = arr.len;
     if(n <= (comptime 8 + RUN)) {
         insertion_sort_functional(T, arr, 0, n - 1, cmp);
@@ -175,16 +169,14 @@ pub fn merge_sort_functional(comptime T: type, allocator: std.mem.Allocator, arr
 /// Sorts ascension, blazingly fast and stable!
 pub fn mergeSort(comptime T: type, arr: []T) void {
     const n = arr.len;
-    const lt = struct {
-        fn lt(a: T, b: T) bool {
-            return a < b;
-        }
-    }.lt;
-
     if(n <= RUN + 8) {
         insertionSort(T, arr, 0, n - 1);
         return;
     }
+
+    const lt =  comptime struct {
+        fn lt(a: T, b: T) bool { return a < b; }
+    }.lt;
 
     const run = n - RUN;
     var i: usize = 0;
@@ -244,7 +236,7 @@ fn heapify(comptime T: type, arr: []T, size: usize, root: usize, comptime cmp: f
 /// 
 /// Controllably stably fast + memory friendly
 pub fn heapSort(comptime T: type, arr: []T) void {
-    const lt = struct {
+    const lt = comptime struct {
         fn lt(a: T, b: T) bool {
             return a < b;
         }
@@ -252,8 +244,10 @@ pub fn heapSort(comptime T: type, arr: []T) void {
 
     const n = arr.len;
     var i = n / 2;
-    while(i != 0) : (i -= 1)
-        heapify(T, arr, n, i - 1, lt);
+    while(i != 0) {
+        i -= 1;
+        heapify(T, arr, n, i, lt);
+    }
 
     i = n - 1;
     while(i != 0) : (i -= 1) {

@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const SAMPLE_SIZE = 20_000;
 
 /// Roughly how long to run the benchmark
-pub var RUN_TIME: u64 = 3 * std.time.ns_per_s;
+pub var RUN_TIME: u64 = 20 * std.time.ns_per_s;
 
 pub const Result = struct {
     total: u64,
