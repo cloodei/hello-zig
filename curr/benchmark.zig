@@ -4,10 +4,10 @@ const Timer = std.time.Timer;
 const Allocator = std.mem.Allocator;
 
 /// Calculate statistics from the last N samples
-const SAMPLE_SIZE = 20_000;
+const SAMPLE_SIZE = 40_000;
 
 /// Roughly how long to run the benchmark
-pub var RUN_TIME: u64 = 20 * std.time.ns_per_s;
+pub var RUN_TIME: u64 = 8 * std.time.ns_per_s;
 
 pub const Result = struct {
     total: u64,
@@ -18,11 +18,11 @@ pub const Result = struct {
     const self = @This();
 
     pub fn print(this: *self, fnName: []const u8) void {
-        var _mean = this.mean();
-        var _worst: f64 = @floatFromInt(this.worst());
-        var _best: f64 = @floatFromInt(this.best());
+        var _mean:   f64 = this.mean();
+        var _worst:  f64 = @floatFromInt(this.worst());
+        var _best:   f64 = @floatFromInt(this.best());
         var _median: f64 = @floatFromInt(this.median());
-        var _stddev = this.stdDev();
+        var _stddev: f64 = this.stdDev();
 
         const mfmt  = rounder(&_mean);
         const wfmt  = rounder(&_worst);
@@ -68,9 +68,9 @@ pub const Result = struct {
         const s = this.samples();
 
         var total: u64 = 0;
-        for(s) |value| {
+        for(s) |value|
             total += value;
-        }
+            
         return @as(f64, @floatFromInt(total)) / @as(f64, @floatFromInt(s.len));
     }
 
@@ -100,8 +100,8 @@ pub const Result = struct {
 /// After RUN_TIME seconds, returns a Result object which can print the benchmarks with Result.print()
 pub fn runWithReturn(
     comptime ResType: type,
-    func: fn(Allocator, *Timer) anyerror!ResType,
-    resFun: fn(ResType) anyerror!void,
+    comptime func: fn(Allocator, *Timer) anyerror!ResType,
+    comptime resFun: fn(ResType) anyerror!void,
     comptime use_gpa: bool
 ) !Result {
 	var total: u64 = 0;
@@ -142,7 +142,7 @@ pub fn runWithReturn(
 /// Runs benchmarking on a noreturn function
 /// 
 /// After RUN_TIME seconds, returns a Result object which can print the benchmarks with Result.print()
-pub fn run(func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime use_gpa: bool) !Result {
+pub fn run(comptime func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime use_gpa: bool) !Result {
 	var total: u64 = 0;
 	var iterations: usize = 0;
 	var samples = std.mem.zeroes([SAMPLE_SIZE]u64);

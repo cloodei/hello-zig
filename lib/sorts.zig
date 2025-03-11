@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const RUN = 24;
 
 
-pub fn insertionSort(comptime T: type, arr: []T, left: usize, right: usize) void {
+pub fn insertionSort(comptime T: type, arr: [*]T, left: usize, right: usize) void {
     var i: usize = left + 1;
     while(i <= right) : (i += 1) {
         const k = arr[i];
@@ -23,7 +23,7 @@ pub fn insertionSort(comptime T: type, arr: []T, left: usize, right: usize) void
 ///
 /// If comparison between a vs b returns true: a then b, else b then a\
 /// Less than operator (a < b) sorts ascending, greater than sorts descending
-pub fn insertion_sort_functional(comptime T: type, arr: []T, left: usize, right: usize, comptime cmp: fn(a: T, b: T) bool) void {
+pub fn insertion_sort_functional(comptime T: type, arr: [*]T, left: usize, right: usize, comptime cmp: fn(a: T, b: T) bool) void {
     var i: usize = left + 1;
     while(i <= right) : (i += 1) {
         const k = arr[i];
@@ -37,7 +37,7 @@ pub fn insertion_sort_functional(comptime T: type, arr: []T, left: usize, right:
 
 
 
-fn internal(comptime T: type, arr: []T, left: usize, right: usize, comptime cmp: fn(T, T) bool) void {
+fn internal(comptime T: type, arr: [*]T, left: usize, right: usize, comptime cmp: fn(a: T, b: T) bool) void {
     if(right - left < RUN) {
         insertion_sort_functional(T, arr, left, right, cmp);
         return;
@@ -79,7 +79,7 @@ pub fn quickSort(comptime T: type, arr: []T) void {
     const n = arr.len;
 
     if(n > 1) 
-        internal(T, arr, 0, n - 1, comptime struct {
+        internal(T, arr.ptr, 0, n - 1, comptime struct {
             fn lt(a: T, b: T) bool { return a < b; }
         }.lt);
 }
@@ -130,16 +130,16 @@ fn merge(comptime T: type, arr: [*]T, buffer: [*]T, left: usize, mid: usize, rig
 pub fn merge_sort_functional(comptime T: type, allocator: Allocator, arr: []T, comptime cmp: fn(T, T) bool) !void {
     const n = arr.len;
     if(n <= (comptime 8 + RUN)) {
-        insertion_sort_functional(T, arr, 0, n - 1, cmp);
+        insertion_sort_functional(T, arr.ptr, 0, n - 1, cmp);
         return;
     }
 
     const run = n - RUN;
     var i: usize = 0;
     while(i < run) : (i += RUN)
-        insertion_sort_functional(T, arr, i, i + (comptime RUN - 1), cmp);
+        insertion_sort_functional(T, arr.ptr, i, i + (comptime RUN - 1), cmp);
     if(i < n)
-        insertion_sort_functional(T, arr, i, n - 1, cmp);
+        insertion_sort_functional(T, arr.ptr, i, n - 1, cmp);
 
     const buffer = try allocator.alloc(T, n);
     defer allocator.free(buffer);
@@ -169,8 +169,8 @@ pub fn merge_sort_functional(comptime T: type, allocator: Allocator, arr: []T, c
 /// Sorts ascension, blazingly fast and stable!
 pub fn mergeSort(comptime T: type, arr: []T) void {
     const n = arr.len;
-    if(n <= RUN + 8) {
-        insertionSort(T, arr, 0, n - 1);
+    if(n <= (comptime 8 + RUN)) {
+        insertionSort(T, arr.ptr, 0, n - 1);
         return;
     }
 
@@ -181,9 +181,9 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
     const run = n - RUN;
     var i: usize = 0;
     while(i < run) : (i += RUN)
-        insertionSort(T, arr, i, i + RUN - 1);
+        insertionSort(T, arr.ptr, i, i + (comptime RUN - 1));
     if(i < n)
-        insertionSort(T, arr, i, n - 1);
+        insertionSort(T, arr.ptr, i, n - 1);
 
     const allocator = std.heap.c_allocator;
     const buffer = allocator.alloc(T, n) catch {
@@ -213,8 +213,8 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
 
 
 
-fn heapify(comptime T: type, arr: []T, size: usize, root: usize, comptime cmp: fn(a: T, b: T) bool) void {
-    const tmp: T = arr[root];
+fn heapify(comptime T: type, arr: [*]T, size: usize, root: usize, comptime cmp: fn(a: T, b: T) bool) void {
+    const tmp = arr[root];
     var hole = root;
     var child: usize = hole * 2 + 1;
 
@@ -237,22 +237,20 @@ fn heapify(comptime T: type, arr: []T, size: usize, root: usize, comptime cmp: f
 /// Controllably stably fast + memory friendly
 pub fn heapSort(comptime T: type, arr: []T) void {
     const lt = comptime struct {
-        fn lt(a: T, b: T) bool {
-            return a < b;
-        }
+        fn lt(a: T, b: T) bool { return a < b; }
     }.lt;
 
     const n = arr.len;
     var i = n / 2;
     while(i != 0) {
         i -= 1;
-        heapify(T, arr, n, i, lt);
+        heapify(T, arr.ptr, n, i, lt);
     }
 
     i = n - 1;
     while(i != 0) : (i -= 1) {
         swap(T, &arr[0], &arr[i]);
-        heapify(T, arr, i, 0, lt);
+        heapify(T, arr.ptr, i, 0, lt);
     }
 }
 
@@ -264,12 +262,12 @@ pub fn heap_sort_functional(comptime T: type, arr: []T, cmp: fn(T, T) bool) void
     const n = arr.len;
     var i = n / 2;
     while(i != 0) : (i -= 1)
-        heapify(T, arr, n, i - 1);
+        heapify(T, arr.ptr, n, i - 1);
 
     i = n - 1;
     while(i != 0) : (i -= 1) {
         swap(T, &arr[0], &arr[i], cmp);
-        heapify(T, arr, i, 0, cmp);
+        heapify(T, arr.ptr, i, 0, cmp);
     }
 }
 

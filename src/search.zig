@@ -113,16 +113,14 @@ pub fn DFS(allocator: std.mem.Allocator, comptime start: usize, comptime end: us
 pub fn HCS(allocator: std.mem.Allocator, comptime start: usize, comptime end: usize) ![]usize {
     var open = Stack([]usize).init(allocator, 16);
     defer {
-        for(open.arr()) |thing| {
+        for(open.arr()) |thing|
             allocator.free(thing);
-        }
+            
         open.deinit();
     }
 
     const cmp = comptime struct {
-        fn cmp(a: usize, b: usize) bool {
-            return HEURISTICS[a] > HEURISTICS[b];
-        }
+        fn cmp(a: usize, b: usize) bool { return HEURISTICS[a] > HEURISTICS[b]; }
     }.cmp;
 
     var tmp = try allocator.alloc(usize, 1);
@@ -164,3 +162,13 @@ pub fn HCS(allocator: std.mem.Allocator, comptime start: usize, comptime end: us
 // pub fn BSS(allocator: std.mem.Allocator, comptime start: usize, comptime end: usize) ![]usize {
 //     var open = Stack([]usize).init(allocator, 16);
 // }
+
+
+
+pub fn format(path: []usize) void {
+    const n = path.len - 1;
+    for(0..n) |i|
+        std.debug.print("{} -> ", .{ path[i] + 1 });
+        
+    std.debug.print("{}\n", .{ path[n] + 1 });
+}

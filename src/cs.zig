@@ -4,7 +4,7 @@ const net = std.net;
 fn send(conn: net.Server.Connection, stdout: std.fs.File.Writer) !void {
     defer conn.stream.close();
 
-    var buffer: [1024]u8 = undefined;
+    var buffer: [8192]u8 = undefined;
 
     const bytes = try conn.stream.read(&buffer);
     try stdout.print("[INFO] Received {} bytes from client - {s}\n", .{ bytes, buffer[0..bytes] });
@@ -27,20 +27,19 @@ fn send(conn: net.Server.Connection, stdout: std.fs.File.Writer) !void {
     );
 }
 
-const port = 8080;
+const PORT = 8080;
 
 pub fn main() !void {
     var stdout = std.io.getStdOut().writer();
 
-    var address = net.Address.initIp4(.{ 0, 0, 0, 0 }, 8080);
+    var address = net.Address.initIp4(.{ 0, 0, 0, 0 }, PORT);
     var server = try address.listen(.{
         .reuse_address = true,
     });
     defer server.deinit();
 
     try stdout.print("[INFO] Server listening on http://127.0.0.1:{} | http://192.168.1.12:{}\n", .{
-        port,
-        port
+        PORT, PORT,
     });
 
     while(true) {
