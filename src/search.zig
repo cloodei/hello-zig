@@ -1,7 +1,10 @@
 const std = @import("std");
 const Queue = @import("queue").Queue;
 const Stack = @import("stack").Stack;
-const notContains = @import("utils").notContains;
+const utils = @import("utils");
+
+const notContains = utils.notContains;
+const memcpy = utils.memcpy;
 
 
 pub const GRAPH = [_][]const u8 {
@@ -55,7 +58,7 @@ pub fn BFS(allocator: std.mem.Allocator, comptime start: usize, comptime end: us
             if(adj != 0) {
                 if(notContains(usize, path, nb)) {
                     const new = try allocator.alloc(usize, len + 1);
-                    @memcpy(new.ptr, path);
+                    memcpy(new.ptr, path.ptr, len);
                     new[len] = nb;
                     open.push(new);
                 }
@@ -96,7 +99,7 @@ pub fn DFS(allocator: std.mem.Allocator, comptime start: usize, comptime end: us
             if(GRAPH[curr][nb] != 0) {
                 if(notContains(usize, path, nb)) {
                     const newPath = try allocator.alloc(usize, len + 1);
-                    @memcpy(newPath.ptr, path);
+                    memcpy(newPath.ptr, path.ptr, len);
                     newPath[len] = nb;
                     open.push(newPath);
                 }
@@ -113,8 +116,8 @@ pub fn DFS(allocator: std.mem.Allocator, comptime start: usize, comptime end: us
 pub fn HCS(allocator: std.mem.Allocator, comptime start: usize, comptime end: usize) ![]usize {
     var open = Stack([]usize).init(allocator, 16);
     defer {
-        for(open.arr()) |thing|
-            allocator.free(thing);
+        for(open.arr()) |mem|
+            allocator.free(mem);
             
         open.deinit();
     }
@@ -147,7 +150,7 @@ pub fn HCS(allocator: std.mem.Allocator, comptime start: usize, comptime end: us
 
         for(adjs.arr()) |adj| {
             var new = try allocator.alloc(usize, len + 1);
-            @memcpy(new.ptr, path);
+            memcpy(new.ptr, path.ptr, len);
             new[len] = adj;
             open.push(new);
         }
@@ -159,9 +162,48 @@ pub fn HCS(allocator: std.mem.Allocator, comptime start: usize, comptime end: us
 }
 
 
-// pub fn BSS(allocator: std.mem.Allocator, comptime start: usize, comptime end: usize) ![]usize {
-//     var open = Stack([]usize).init(allocator, 16);
-// }
+pub fn BSS(allocator: std.mem.Allocator, comptime start: usize, comptime end: usize) ![]usize {
+    var open = Stack([]usize).init(allocator, 16);
+    defer {
+        for(open.arr()) |thing|
+            allocator.free(thing);
+        
+        open.deinit();
+    }
+
+    var tmp = try allocator.alloc(usize, 1);
+    tmp[0] = start;
+    open.push(tmp);
+
+    const cmp = comptime struct {
+        fn cmp(a: []usize, b: []usize) bool { return HEURISTICS[a[a.len - 1]] > HEURISTICS[b[b.len - 1]]; }
+    }.cmp;
+
+    while(open.len != 0) {
+        const path = open.pop();
+        const len = path.len;
+        const curr = path[len - 1];
+
+        if(curr == end)
+            return path;
+        
+        for(GRAPH[curr], 0..) |adj, nb| {
+            if(adj != 0) {
+                if(notContains(usize, path, nb)) {
+                    const new = try allocator.alloc(usize, len + 1);
+                    memcpy(new, path, len);
+                    new[len] = nb;
+                    open.push(new);
+                }
+            }
+        }
+
+        open.sortSpec(cmp);
+        allocator.free(path);
+    }
+
+    return &[_]usize {};
+}
 
 
 

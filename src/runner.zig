@@ -4,27 +4,23 @@ const random = @import("rand");
 const sorts = @import("sorts");
 const utils = @import("utils");
 const benchmark = @import("benchmark");
-const memcpy = @cImport({
-    @cDefine("_NO_CRT_STDIO_INLINE", "1");
-    @cInclude("string.h");
-}).memcpy;
 
 const Allocator = std.mem.Allocator;
 const Timer = std.time.Timer;
 
 
 pub fn cmemcpy(allocator: Allocator, timer: *Timer) !void {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 5_000_000, 0, 80_000_000);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 2_000_000, 0, 80_000_000);
     defer allocator.free(arr);
     const buffer = try allocator.alloc(i32, arr.len);
     defer allocator.free(buffer);
 
     timer.reset();
-    _ = memcpy(buffer.ptr, arr.ptr, arr.len);
+    utils._memcpy(buffer.ptr, arr.ptr, arr.len);
 }
 
 pub fn stdmemcpy(allocator: Allocator, timer: *Timer) !void {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 5_000_000, 0, 80_000_000);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 2_000_000, 0, 80_000_000);
     defer allocator.free(arr);
     const buffer = try allocator.alloc(i32, arr.len);
     defer allocator.free(buffer);
@@ -33,19 +29,50 @@ pub fn stdmemcpy(allocator: Allocator, timer: *Timer) !void {
     @memcpy(buffer, arr);
 }
 
-pub fn run_cmemcpy_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(cmemcpy, use_gpa);
+pub fn run_cmemcpy_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(cmemcpy, use_dba);
     x.print("C Memcpy");
 }
 
-pub fn run_stdmemcpy_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(stdmemcpy, use_gpa);
+pub fn run_stdmemcpy_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(stdmemcpy, use_dba);
     x.print("Zig Memcpy");
 }
 
-pub fn run_memcpys_bench(comptime use_gpa: bool) !void {
-    try run_stdmemcpy_bench(use_gpa);
-    try run_cmemcpy_bench(use_gpa);
+pub fn run_memcpys_bench(comptime use_dba: bool) !void {
+    try run_cmemcpy_bench(use_dba);
+    try run_stdmemcpy_bench(use_dba);
+}
+
+pub fn cmemset(allocator: Allocator, timer: *Timer) !void {
+    const arr = random.rand_int_arr_in_range(i32, allocator, 2_000_000, 0, 80_000_000);
+    defer allocator.free(arr);
+
+    timer.reset();
+    utils.memset(arr.ptr, @as(i32, 0), arr.len);
+}
+
+pub fn stdmemset(allocator: Allocator, timer: *Timer) !void {
+    const arr = random.rand_int_arr_in_range(i32, allocator, 2_000_000, 0, 80_000_000);
+    defer allocator.free(arr);
+
+    timer.reset();
+    @memset(arr, 0);
+}
+
+pub fn run_cmemset_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(cmemset, use_dba);
+    x.print("C Memset");
+}
+
+pub fn run_stdmemset_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(stdmemset, use_dba);
+    x.print("Zig Memset");
+}
+
+pub fn run_memsets_bench(comptime use_dba: bool) !void {
+    try run_cmemset_bench(use_dba);
+    try run_stdmemset_bench(use_dba);
 }
 
 
@@ -65,31 +92,31 @@ pub fn runSearchHCS(allocator: Allocator, _: *Timer) !void {
 }
 
 
-pub fn run_DFS_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(runSearchDFS, use_gpa);
+pub fn run_DFS_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runSearchDFS, use_dba);
     x.print("DFS");
 }
 
-pub fn run_BFS_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(runSearchBFS, use_gpa);
+pub fn run_BFS_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runSearchBFS, use_dba);
     x.print("BFS");
 }
 
-pub fn run_HCS_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(runSearchHCS, use_gpa);
+pub fn run_HCS_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runSearchHCS, use_dba);
     x.print("HCS");
 }
 
-pub fn run_all_search(comptime use_gpa: bool) !void {
-    try run_DFS_bench(use_gpa);
-    try run_BFS_bench(use_gpa);
-    try run_HCS_bench(use_gpa);
+pub fn run_all_search(comptime use_dba: bool) !void {
+    try run_DFS_bench(use_dba);
+    try run_BFS_bench(use_dba);
+    try run_HCS_bench(use_dba);
 }
 
-pub fn run_all_search_simul(comptime use_gpa: bool) !void {
-    const t1 = try std.Thread.spawn(.{}, run_DFS_bench, .{ use_gpa });
-    const t2 = try std.Thread.spawn(.{}, run_BFS_bench, .{ use_gpa });
-    const t3 = try std.Thread.spawn(.{}, run_HCS_bench, .{ use_gpa });
+pub fn run_all_search_simul(comptime use_dba: bool) !void {
+    const t1 = try std.Thread.spawn(.{}, run_DFS_bench, .{ use_dba });
+    const t2 = try std.Thread.spawn(.{}, run_BFS_bench, .{ use_dba });
+    const t3 = try std.Thread.spawn(.{}, run_HCS_bench, .{ use_dba });
 
     t1.join();
     t2.join();
@@ -163,20 +190,20 @@ pub fn runSS(allocator: Allocator, timer: *Timer) !void {
 }
 
 
-pub fn run_mergesort_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(runMS, use_gpa);
+pub fn run_mergesort_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runMS, use_dba);
     x.print("MergeSort");
 }
-pub fn run_quicksort_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(runQS, use_gpa);
+pub fn run_quicksort_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runQS, use_dba);
     x.print("QuickSort");
 }
-pub fn run_heapsort_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(runHS, use_gpa);
+pub fn run_heapsort_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runHS, use_dba);
     x.print("HeapSort");
 }
-pub fn run_stdsort_bench(comptime use_gpa: bool) !void {
-    var x = try benchmark.run(runSS, use_gpa);
+pub fn run_stdsort_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runSS, use_dba);
     x.print("STD Sort");
 }
 
@@ -186,44 +213,44 @@ pub fn checkSorted(array: []i32) !void {
 }
 
 
-pub fn run_mergesort_bench_with_check(comptime use_gpa: bool) !void {
-    var x = try benchmark.runWithReturn([]i32, runCheckMS, checkSorted, use_gpa);
+pub fn run_mergesort_bench_with_check(comptime use_dba: bool) !void {
+    var x = try benchmark.runWithReturn([]i32, runCheckMS, checkSorted, use_dba);
     x.print("MergeSort");
 }
-pub fn run_quicksort_bench_with_check(comptime use_gpa: bool) !void {
-    var x = try benchmark.runWithReturn([]i32, runCheckQS, checkSorted, use_gpa);
+pub fn run_quicksort_bench_with_check(comptime use_dba: bool) !void {
+    var x = try benchmark.runWithReturn([]i32, runCheckQS, checkSorted, use_dba);
     x.print("QuickSort");
 }
-pub fn run_heapsort_bench_with_check(comptime use_gpa: bool) !void {
-    var x = try benchmark.runWithReturn([]i32, runCheckHS, checkSorted, use_gpa);
+pub fn run_heapsort_bench_with_check(comptime use_dba: bool) !void {
+    var x = try benchmark.runWithReturn([]i32, runCheckHS, checkSorted, use_dba);
     x.print("HeapSort");
 }
-pub fn run_stdsort_bench_with_check(comptime use_gpa: bool) !void {
-    var x = try benchmark.runWithReturn([]i32, runCheckSS, checkSorted, use_gpa);
+pub fn run_stdsort_bench_with_check(comptime use_dba: bool) !void {
+    var x = try benchmark.runWithReturn([]i32, runCheckSS, checkSorted, use_dba);
     x.print("STD Sort");
 }
 
 
-pub fn run_all_sorts_bench(comptime use_gpa: bool) !void {
-    try run_mergesort_bench(use_gpa);
-    try run_quicksort_bench(use_gpa);
-    try run_stdsort_bench(use_gpa);
-    try run_heapsort_bench(use_gpa);
+pub fn run_all_sorts_bench(comptime use_dba: bool) !void {
+    try run_mergesort_bench(use_dba);
+    try run_quicksort_bench(use_dba);
+    try run_stdsort_bench(use_dba);
+    try run_heapsort_bench(use_dba);
 }
 
-pub fn run_all_sorts_bench_with_check(comptime use_gpa: bool) !void {
-    try run_mergesort_bench_with_check(use_gpa);
-    try run_quicksort_bench_with_check(use_gpa);
-    try run_stdsort_bench_with_check(use_gpa);
-    try run_heapsort_bench_with_check(use_gpa);
+pub fn run_all_sorts_bench_with_check(comptime use_dba: bool) !void {
+    try run_mergesort_bench_with_check(use_dba);
+    try run_quicksort_bench_with_check(use_dba);
+    try run_stdsort_bench_with_check(use_dba);
+    try run_heapsort_bench_with_check(use_dba);
 }
 
 
-pub fn run_all_sorts_bench_simul(comptime use_gpa: bool) !void {
-    var t1 = try std.Thread.spawn(.{}, run_mergesort_bench, .{ use_gpa });
-    var t2 = try std.Thread.spawn(.{}, run_quicksort_bench, .{ use_gpa });
-    var t3 = try std.Thread.spawn(.{}, run_heapsort_bench,  .{ use_gpa });
-    var t4 = try std.Thread.spawn(.{}, run_stdsort_bench,   .{ use_gpa });
+pub fn run_all_sorts_bench_simul(comptime use_dba: bool) !void {
+    var t1 = try std.Thread.spawn(.{}, run_mergesort_bench, .{ use_dba });
+    var t2 = try std.Thread.spawn(.{}, run_quicksort_bench, .{ use_dba });
+    var t3 = try std.Thread.spawn(.{}, run_heapsort_bench,  .{ use_dba });
+    var t4 = try std.Thread.spawn(.{}, run_stdsort_bench,   .{ use_dba });
 
     t1.join();
     t2.join();
@@ -231,11 +258,11 @@ pub fn run_all_sorts_bench_simul(comptime use_gpa: bool) !void {
     t4.join();
 }
 
-pub fn run_all_sorts_bench_with_check_simul(comptime use_gpa: bool) !void {
-    var t1 = try std.Thread.spawn(.{}, run_mergesort_bench_with_check, .{ use_gpa });
-    var t2 = try std.Thread.spawn(.{}, run_quicksort_bench_with_check, .{ use_gpa });
-    var t4 = try std.Thread.spawn(.{}, run_heapsort_bench_with_check,  .{ use_gpa });
-    var t3 = try std.Thread.spawn(.{}, run_stdsort_bench_with_check,   .{ use_gpa });
+pub fn run_all_sorts_bench_with_check_simul(comptime use_dba: bool) !void {
+    var t1 = try std.Thread.spawn(.{}, run_mergesort_bench_with_check, .{ use_dba });
+    var t2 = try std.Thread.spawn(.{}, run_quicksort_bench_with_check, .{ use_dba });
+    var t4 = try std.Thread.spawn(.{}, run_heapsort_bench_with_check,  .{ use_dba });
+    var t3 = try std.Thread.spawn(.{}, run_stdsort_bench_with_check,   .{ use_dba });
 
     t1.join();
     t2.join();

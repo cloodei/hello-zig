@@ -4,11 +4,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-/// C MEMCPY IS 10X FASTER AND BETTER (less safe), USE WHENEVER POSSIBLE!!
-const memcpy = @cImport({
-    @cInclude("string.h");
-}).memcpy;
-
 const LengthError = error {MismatchLength, EmptyStack, InsufficientLength};
 const PosError = error {InvalidPos};
 
@@ -86,6 +81,12 @@ pub fn Stack(comptime T: type) type {
             return this.items[this.len - 1];
         }
 
+        pub inline fn swap(this: *Self, i: usize, j: usize) void {
+            const t = this.items[i];
+            this.items[i] = this.items[j];
+            this.items[j] = t;
+        }
+
         /// Check if length is 0
         pub inline fn empty(this: Self) bool {
             return this.len == 0;
@@ -109,7 +110,7 @@ pub fn Stack(comptime T: type) type {
                 const newCap: usize = len * 2;
                 if(!this.allocator.resize(this.items, newCap)) {
                     const mem = this.allocator.alloc(T, newCap) catch @panic("Can't resize Stack!");
-                    _ = memcpy(@alignCast(@ptrCast(mem.ptr)), @alignCast(@ptrCast(this.items.ptr)), this.len);
+                    @memcpy(mem.ptr, this.items);
 
                     this.deinit();
                     this.items = mem;
@@ -132,8 +133,8 @@ pub fn Stack(comptime T: type) type {
                 const newCap: usize = n * 2;
                 if(!this.allocator.resize(this.items, newCap)) {
                     const mem = try this.allocator.alloc(T, newCap);
-                    _ = memcpy(@alignCast(@ptrCast(mem.ptr)), @alignCast(@ptrCast(this.items)), pos);
-                    _ = memcpy(@alignCast(@ptrCast(mem.ptr + pos + 1)),@alignCast(@ptrCast(this.items.ptr + pos)),n - pos);
+                    @memcpy(mem.ptr, this.items[0..pos]);
+                    @memcpy(mem.ptr + pos + 1, this.items[pos..n]);
                     mem[pos] = elem;
                     this.deinit();
 
@@ -178,14 +179,14 @@ pub fn Stack(comptime T: type) type {
                 const resized: usize = if(extend >= cap) cap + extend + 2 * @log2(cap + extend) else cap * 2;
                 if(!this.allocator.resize(this.items, resized)) {
                     const mem = try this.allocator.alloc(T, resized);
-                    _ = memcpy(@alignCast(@ptrCast(mem.ptr)), @alignCast(@ptrCast(this.items.ptr)), n);
+                    @memcpy(mem.ptr, this.items);
 
                     this.deinit();
                     this.items = mem;
                 }
             }
 
-            _ = memcpy(@alignCast(@ptrCast(this.items.ptr + n)), @alignCast(@ptrCast(buffer.ptr)), extend);
+            @memcpy(this.items.ptr + n, buffer);
             this.len += extend;
         }
 
@@ -210,10 +211,11 @@ pub fn Stack(comptime T: type) type {
                 if(!this.allocator.resize(this.items, resized)) {
                     const mem = try this.allocator.alloc(T, resized);
                     var tmp = mem.ptr;
-                    _ = memcpy(@alignCast(@ptrCast(tmp)), @alignCast(@ptrCast(this.items.ptr)), pos);
+
+                    @memcpy(tmp, this.items[0..pos]);
                     tmp += pos;
-                    _ = memcpy(@alignCast(@ptrCast(tmp)), @alignCast(@ptrCast(buffer.ptr)), extend);
-                    _ = memcpy(@alignCast(@ptrCast(tmp + extend)), @alignCast(@ptrCast(this.items.ptr + pos)), n - pos);
+                    @memcpy(tmp, buffer);
+                    @memcpy(tmp + extend, this.items[pos..]);
 
                     this.deinit();
                     this.items = mem;
@@ -225,7 +227,7 @@ pub fn Stack(comptime T: type) type {
             for(pos..n) |i|
                 this.items[extend + i] = this.items[i];
 
-            _ = memcpy(@alignCast(@ptrCast(this.items + pos)), @alignCast(@ptrCast(buffer.ptr)), extend);
+            @memcpy(this.items + pos, buffer);
             this.len += extend;
         }
 
@@ -248,7 +250,7 @@ pub fn Stack(comptime T: type) type {
             return this.remove(0);
         }
 
-        /// Removes element at pos from Stack and returns it, decrement length, O(n) time
+        /// Removes element at exactly items[pos] from Stack and returns it, decrement length, O(n) time
         pub fn remove(this: *Self, pos: usize) !T {
             if(this.len == 0)
                 return LengthError.EmptyStack;
@@ -257,11 +259,13 @@ pub fn Stack(comptime T: type) type {
             if(pos > n)
                 return PosError.InvalidPos;
 
+            const res = this.items[pos];
             var i = pos;
             while(i < n) : (i += 1)
                 this.items[i] = this.items[i + 1];
             
             this.len = n;
+            return res;
         }
 
         /// Crop the last length elements from the Stack
@@ -300,7 +304,7 @@ pub fn Stack(comptime T: type) type {
             if(buffer.len >= this.len)
                 return LengthError.MismatchLength;
 
-            _ = memcpy(@alignCast(@ptrCast(buffer.ptr)), @alignCast(@ptrCast(this.items.ptr)), this.len);
+            @memcpy(buffer.ptr, this.arr());
         }
 
         /// Copy current Stack into other Stack
@@ -344,7 +348,7 @@ pub fn Stack(comptime T: type) type {
         /// Sorts entire Stack in ascending order\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
         pub fn sort(this: *Self) void {
-            qsort(this.items[0..this.len], lt);
+            qsort(this.arr(), lt);
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted in ascending order\
@@ -372,7 +376,7 @@ pub fn Stack(comptime T: type) type {
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than sorts descending
         pub fn sortSpec(this: *Self, comptime cmp: fn(T, T) bool) void {
-            qsort(this.items[0..this.len], cmp);
+            qsort(this.arr(), cmp);
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted according to comparator\
@@ -393,9 +397,10 @@ pub fn Stack(comptime T: type) type {
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
         pub fn toSortedArrSpec(this: Self, comptime cmp: fn(T, T) bool) ![]T {
-            const res = try this.arrCopy();
-            qsort(res, cmp);
-            return res;
+            const buffer = try this.arrCopy();
+            qsort(buffer, cmp);
+
+            return buffer;
         }
 
 
@@ -415,11 +420,11 @@ pub fn Stack(comptime T: type) type {
 
             const mid = (left + right) >> 1;
             if(cmp(array[right], array[left]))
-                swap(&array[left], &array[right]);
+                _swap(&array[left], &array[right]);
             if(cmp(array[mid], array[left]))
-                swap(&array[left], &array[mid]);
+                _swap(&array[left], &array[mid]);
             if(cmp(array[mid], array[right]))
-                swap(&array[mid],  &array[right]);
+                _swap(&array[mid],  &array[right]);
 
             const pivot = array[right];
             var i = left;
@@ -433,14 +438,14 @@ pub fn Stack(comptime T: type) type {
 
                 if(i >= j)
                     break;
-                swap(&array[i], &array[j]);
+                _swap(&array[i], &array[j]);
             }
 
-            swap(&array[i], &array[right]);
+            _swap(&array[i], &array[right]);
             internal(array, left, i - 1, cmp);
             internal(array, i + 1, right, cmp);
         }
-        inline fn swap(a: *T, b: *T) void {
+        inline fn _swap(a: *T, b: *T) void {
             const t = a.*;
             a.* = b.*;
             b.* = t;
@@ -449,7 +454,7 @@ pub fn Stack(comptime T: type) type {
             const n = array.len;
 
             if(n > 1)
-                internal(T, array.ptr, 0, n - 1, cmp);
+                internal(array.ptr, 0, n - 1, cmp);
         }
 
 
@@ -457,7 +462,7 @@ pub fn Stack(comptime T: type) type {
         pub fn format(this: Self, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             try writer.writeAll("[ ");
 
-            for(this.items[0..this.len], 0..) |item, i| {
+            for(this.arr(), 0..) |item, i| {
                 if(i > 0)
                     try writer.writeAll(", ");
 

@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const SAMPLE_SIZE = 40_000;
 
 /// Roughly how long to run the benchmark
-pub var RUN_TIME: u64 = 8 * std.time.ns_per_s;
+pub var RUN_TIME: u64 = 5 * std.time.ns_per_s;
 
 pub const Result = struct {
     total: u64,
@@ -102,15 +102,15 @@ pub fn runWithReturn(
     comptime ResType: type,
     comptime func: fn(Allocator, *Timer) anyerror!ResType,
     comptime resFun: fn(ResType) anyerror!void,
-    comptime use_gpa: bool
+    comptime use_dba: bool
 ) !Result {
 	var total: u64 = 0;
 	var iterations: usize = 0;
 	var samples = std.mem.zeroes([SAMPLE_SIZE]u64);
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    defer _ = gpa.deinit();
-    const allocator = if(use_gpa) gpa.allocator() else std.heap.c_allocator;
+    var dba = std.heap.DebugAllocator(.{}).init;
+    defer _ = dba.deinit();
+    const allocator = if(use_dba) dba.allocator() else std.heap.smp_allocator;
 
 	while(true) {
     	var timer = try Timer.start();
@@ -142,17 +142,18 @@ pub fn runWithReturn(
 /// Runs benchmarking on a noreturn function
 /// 
 /// After RUN_TIME seconds, returns a Result object which can print the benchmarks with Result.print()
-pub fn run(comptime func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime use_gpa: bool) !Result {
+pub fn run(comptime func: fn(allocator: Allocator, timer: *Timer) anyerror!void, comptime use_dba: bool) !Result {
 	var total: u64 = 0;
 	var iterations: usize = 0;
 	var samples = std.mem.zeroes([SAMPLE_SIZE]u64);
+    var timer = try Timer.start();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    defer _ = gpa.deinit();
-    const allocator = if(use_gpa) gpa.allocator() else std.heap.c_allocator;
+    var dba = std.heap.DebugAllocator(.{}).init;
+    defer _ = dba.deinit();
+    const allocator = if(use_dba) dba.allocator() else std.heap.smp_allocator;
 
 	while(true) {
-	    var timer = try Timer.start();
+        timer.reset();
         try func(allocator, &timer);
 		const elapsed = timer.lap();
 
