@@ -4,8 +4,8 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-const LengthError = error {MismatchLength, EmptyStack, InsufficientLength};
-const PosError = error {InvalidPos};
+pub const LengthError = error{ InsufficientLength, InvalidLength };
+pub const PosError = error{ InvalidPos };
 
 /// Internally stores Allocator, the list [ ] of items, and the current length\
 /// Has an internal lessThan operator function, can be exchanged if needed
@@ -27,11 +27,11 @@ pub fn Stack(comptime T: type) type {
         /// formatter will print an ascii character or a u8 number
         /// 
         /// Defaults to true (prints string of u8 ascii characters), set to false to print numbers naturally
-        string_representation: bool,
+        string_representation: bool = true,
 
 
-        /// Highly recommend GPA allocator!\
-        /// Init Stack with an Allocator and starting cap
+        /// Highly recommend DBA allocator!\
+        /// Init Stack with an Allocator and a starting capacity
         pub fn init(allocator: std.mem.Allocator, Capacity: usize) Self {
             assert(Capacity != 0);
             
@@ -41,7 +41,6 @@ pub fn Stack(comptime T: type) type {
                 .len = 0,
                 .items = mem,
                 .allocator = allocator,
-                .string_representation = true,
             };
         }
 
@@ -81,10 +80,35 @@ pub fn Stack(comptime T: type) type {
             return this.items[this.len - 1];
         }
 
+        /// Swaps two elements at items[i] and items[j]
         pub inline fn swap(this: *Self, i: usize, j: usize) void {
             const t = this.items[i];
             this.items[i] = this.items[j];
             this.items[j] = t;
+        }
+
+        /// Initiate a bigger capacity for the Stack so as to not resize on future insertions 
+        pub fn reserve(this: *Self, cap: usize) !void {
+            if(this.capacity() >= cap)
+                return LengthError.InvalidLength;
+
+            if(!this.resize(cap)) {
+                const mem = try this.allocator.alloc(T, cap);
+                if(this.len != 0)
+                    @memcpy(mem.ptr, this.arr());
+
+                this.deinit();
+                this.items = mem;
+            }
+        }
+
+        /// Attempt an in-place resizing for the Stack (does not move the pointer), returning a boolean op-check\
+        /// Returns false on failed resize attempt
+        pub fn resize(this: *Self, cap: usize) bool {
+            if(this.capacity() >= cap)
+                return false;
+
+            return this.allocator.resize(this.items, cap);
         }
 
         /// Check if length is 0
@@ -110,7 +134,7 @@ pub fn Stack(comptime T: type) type {
                 const newCap: usize = len * 2;
                 if(!this.allocator.resize(this.items, newCap)) {
                     const mem = this.allocator.alloc(T, newCap) catch @panic("Can't resize Stack!");
-                    @memcpy(mem.ptr, this.items);
+                    @memcpy(mem.ptr, this.arr());
 
                     this.deinit();
                     this.items = mem;
@@ -179,7 +203,7 @@ pub fn Stack(comptime T: type) type {
                 const resized: usize = if(extend >= cap) cap + extend + 2 * @log2(cap + extend) else cap * 2;
                 if(!this.allocator.resize(this.items, resized)) {
                     const mem = try this.allocator.alloc(T, resized);
-                    @memcpy(mem.ptr, this.items);
+                    @memcpy(mem.ptr, this.arr());
 
                     this.deinit();
                     this.items = mem;
@@ -215,7 +239,7 @@ pub fn Stack(comptime T: type) type {
                     @memcpy(tmp, this.items[0..pos]);
                     tmp += pos;
                     @memcpy(tmp, buffer);
-                    @memcpy(tmp + extend, this.items[pos..]);
+                    @memcpy(tmp + extend, this.items[pos..n]);
 
                     this.deinit();
                     this.items = mem;
@@ -253,7 +277,7 @@ pub fn Stack(comptime T: type) type {
         /// Removes element at exactly items[pos] from Stack and returns it, decrement length, O(n) time
         pub fn remove(this: *Self, pos: usize) !T {
             if(this.len == 0)
-                return LengthError.EmptyStack;
+                return LengthError.InsufficientLength;
                 
             const n = this.len - 1;
             if(pos > n)
@@ -270,9 +294,7 @@ pub fn Stack(comptime T: type) type {
 
         /// Crop the last length elements from the Stack
         pub fn truncate(this: *Self, length: usize) LengthError!void {
-            if(this.len == 0)
-                return LengthError.EmptyStack;
-            if(length > this.len)
+            if(length > this.len or this.len == 0)
                 return LengthError.InsufficientLength;
 
             this.len -= length;
@@ -280,14 +302,13 @@ pub fn Stack(comptime T: type) type {
 
         /// Crop all elements from items[start .. end] (inclusively, allowed from [0..n])
         pub fn crop(this: *Self, start: usize, end: usize) LengthError!void {
-            const n = this.len;
-            if(n == 0)
-                return LengthError.EmptyStack;
             if(end < start)
-                return LengthError.MismatchLength;
+                return LengthError.InvalidLength;
 
+            const n = this.len;
             const len: usize = end - start + 1;
-            if(len > n)
+            
+            if(len > n or n == 0)
                 return LengthError.InsufficientLength;
 
             this.len -= len;
@@ -302,7 +323,7 @@ pub fn Stack(comptime T: type) type {
         /// Copy current Stack into array
         pub fn copyIntoArr(this: Self, buffer: []T) LengthError!void {
             if(buffer.len >= this.len)
-                return LengthError.MismatchLength;
+                return LengthError.InvalidLength;
 
             @memcpy(buffer.ptr, this.arr());
         }
@@ -329,19 +350,35 @@ pub fn Stack(comptime T: type) type {
             return buffer;
         }
 
-        /// Take complete ownership of other Stack's memory, rendering it undefined\
-        /// Frees current Stack
+        /// Take complete ownership of other Stack's memory, rendering it undefined (completely O(1), does not copy)
+        /// 
+        /// other Stack's pointer cannot access its now-moved memory (becomes 0-slice). Current Stack is freed
         pub fn take(this: *Self, other: *Self) LengthError!void {
             if(other.len == 0)
-                return LengthError.EmptyStack;
+                return LengthError.InsufficientLength;
 
             this.deinit();
             this.items = other.items;
             this.len = other.len;
 
             other.len = 0;
-            other.items.len = 0;
-            other.items.ptr = null;
+            other.items = &[_]T {};
+        }
+
+        /// Take complete ownership of current Stack's memory, rendering it undefined (completely O(1), does not copy)
+        /// 
+        /// Current Stack's pointer cannot access its now-moved memory (becomes 0-slice)
+        pub fn move(this: *Self) Self {
+            const res = Self {
+                .allocator = this.allocator,
+                .items = this.items,
+                .len = this.len
+            };
+
+            this.len = 0;
+            this.items = &[_]T {};
+
+            return res;
         }
 
 
@@ -427,12 +464,10 @@ pub fn Stack(comptime T: type) type {
                 _swap(&array[mid],  &array[right]);
 
             const pivot = array[right];
-            var i = left;
-            var j = right;
+            var i = left + 1;
+            var j = right - 1;
 
-            while(true) {
-                i += 1;
-                j -= 1;
+            while(true) : ({ i += 1; j -= 1; }) {
                 while(cmp(array[i], pivot)) i += 1;
                 while(cmp(pivot, array[j])) j -= 1;
 
@@ -458,7 +493,9 @@ pub fn Stack(comptime T: type) type {
         }
 
 
-        /// Formats the Stack for I/O writers, prints each element in their respected formats [ elem, elem, ... ]
+        /// Formats the Stack for I/O writers, use default { } formatting and pass the entire Stack object
+        /// 
+        /// Prints each element in their respected formats [ elem, elem, ... ]
         pub fn format(this: Self, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             try writer.writeAll("[ ");
 
@@ -469,8 +506,8 @@ pub fn Stack(comptime T: type) type {
                 const info = @typeInfo(T);
                 switch(info) {
                     .pointer => |p| {
-                        if(p.size == .slice and p.child == u8) {
-                            if(this.string_representation) {
+                        if(p.size == .slice) {
+                            if(p.child == u8 and this.string_representation) {
                                 try writer.print("\"{s}\"", .{ item });
                             }
                             else {

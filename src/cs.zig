@@ -1,5 +1,6 @@
 const std = @import("std");
 const net = std.net;
+const fs  = std.fs;
 
 fn send(conn: net.Server.Connection, stdout: std.fs.File.Writer) !void {
     defer conn.stream.close();

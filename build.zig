@@ -71,6 +71,13 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("utils", utils_mod);
 
+    const string_mod = b.createModule(.{
+        .root_source_file = b.path("lib/string.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("string", string_mod);
+
     const bench_mod = b.createModule(.{
         .root_source_file = b.path("curr/benchmark.zig"),
         .target = target,
