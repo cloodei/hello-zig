@@ -3,14 +3,14 @@
     .version = "0.0.0",
     .fingerprint = 0xf3d1d8a6766751e1,
     .dependencies = .{
-        .httpz = .{
-            .url = "git+https://github.com/karlseguin/http.zig?ref=master#56258131ef4505543fef5484451867c13c5ff322",
-            .hash = "httpz-0.0.0-PNVzrJSuBgDFvO7mtd2qDzaq8_hXIu1BqFuL1jwAV8Ac",
-        },
-        .pg = .{
-            .url = "git+https://github.com/karlseguin/pg.zig?ref=master#d47987249e2ead39571dfd1d6330ea6903a95c52",
-            .hash = "pg-0.0.0-Wp_7gfbQBQDLKhWpwYy2KTE4KabTKVobdy86TaQbDAyW",
-        },
+        // .httpz = .{
+        //     .url = "git+https://github.com/karlseguin/http.zig?ref=master#56258131ef4505543fef5484451867c13c5ff322",
+        //     .hash = "httpz-0.0.0-PNVzrJSuBgDFvO7mtd2qDzaq8_hXIu1BqFuL1jwAV8Ac",
+        // },
+        // .pg = .{
+        //     .url = "git+https://github.com/karlseguin/pg.zig?ref=master#d47987249e2ead39571dfd1d6330ea6903a95c52",
+        //     .hash = "pg-0.0.0-Wp_7gfbQBQDLKhWpwYy2KTE4KabTKVobdy86TaQbDAyW",
+        // },
     },
     .paths = .{
         "src",

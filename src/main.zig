@@ -6,12 +6,6 @@ const String = @import("string");
 
 
 pub fn main() !void {
-    var thing = Stack(i32).init(std.heap.smp_allocator, 4);
-    const another = thing.move();
-    const sth = try String.init_with("but nobody came...");
-    std.debug.print("{}\n{}", .{ sth, another });
-
-
     // var dba = std.heap.DebugAllocator(.{}).init;
     // defer _ = dba.deinit();
     // const allocator = dba.allocator();

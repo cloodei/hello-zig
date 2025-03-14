@@ -12,9 +12,23 @@ pub const PosError = error{ InvalidPos };
 /// Can be used interchangeably as a Vector
 pub fn Stack(comptime T: type) type {
     comptime assert(@sizeOf(T) > 0);
-    const lt = comptime struct {
-        fn lt(a: T, b: T) bool { return a < b; }
-    }.lt;
+    const Type = comptime @typeInfo(T);
+    
+    const lt = comptime sw: switch(Type) {
+        .@"struct", .@"enum", .@"union" => {
+            if(@hasDecl(T, "cmp")) {
+                break :sw struct {
+                    fn lt(a: T, b: T) bool { return a.cmp(b); }
+                }.lt;
+            }
+            else {
+                continue :sw u8;
+            }
+        },
+        else => struct {
+            fn lt(a: T, b: T) bool { return a < b; }
+        }.lt
+    };
 
     return struct {
         const Self = @This();
@@ -46,7 +60,7 @@ pub fn Stack(comptime T: type) type {
 
         /// Init Stack with a starting cap
         pub inline fn initCap(Capacity: usize) Self {
-            return init(std.heap.c_allocator, Capacity);
+            return init(std.heap.smp_allocator, Capacity);
         }
 
         /// Init Stack with Allocator
@@ -87,12 +101,12 @@ pub fn Stack(comptime T: type) type {
             this.items[j] = t;
         }
 
-        /// Initiate a bigger capacity for the Stack so as to not resize on future insertions 
-        pub fn reserve(this: *Self, cap: usize) !void {
+        /// Attempt a resize with a bigger capacity for the Stack
+        pub fn resize(this: *Self, cap: usize) !void {
             if(this.capacity() >= cap)
                 return LengthError.InvalidLength;
 
-            if(!this.resize(cap)) {
+            if(!this.allocator.resize(this.items, cap)) {
                 const mem = try this.allocator.alloc(T, cap);
                 if(this.len != 0)
                     @memcpy(mem.ptr, this.arr());
@@ -100,15 +114,6 @@ pub fn Stack(comptime T: type) type {
                 this.deinit();
                 this.items = mem;
             }
-        }
-
-        /// Attempt an in-place resizing for the Stack (does not move the pointer), returning a boolean op-check\
-        /// Returns false on failed resize attempt
-        pub fn resize(this: *Self, cap: usize) bool {
-            if(this.capacity() >= cap)
-                return false;
-
-            return this.allocator.resize(this.items, cap);
         }
 
         /// Check if length is 0
