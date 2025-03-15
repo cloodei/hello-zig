@@ -9,8 +9,8 @@ buffer: []u8,
 len: usize,
 
 
-pub fn init(allocator: Allocator) Error!Self {
-    return Self{
+pub inline fn init(allocator: Allocator) Error!Self {
+    return Self {
         .allocator = allocator,
         .buffer = try allocator.alloc(u8, 16),
         .len = 0,
@@ -21,7 +21,7 @@ pub fn init_from(str: Self) Error!Self {
     const mem = try str.allocator.alloc(u8, str.len);
     @memcpy(mem.ptr, str.slice());
 
-    return Self{
+    return Self {
         .allocator = str.allocator,
         .buffer = mem,
         .len = str.len,
@@ -29,7 +29,7 @@ pub fn init_from(str: Self) Error!Self {
 }
 
 pub fn init_contents(str: []const u8) Error!Self {
-    return Self{
+    return Self {
         .allocator = std.heap.smp_allocator,
         .buffer = @constCast(str),
         .len = str.len,
@@ -41,7 +41,7 @@ pub fn init_copy_str(str: []const u8) Error!Self {
     const mem = try allocator.alloc(u8, str.len);
     @memcpy(mem.ptr, str);
 
-    return Self{
+    return Self {
         .allocator = allocator,
         .buffer = mem,
         .len = str.len,
@@ -52,11 +52,11 @@ pub fn deinit(this: *Self) void {
     this.allocator.free(this.buffer);
 }
 
-pub fn capacity(this: Self) usize {
+pub inline fn capacity(this: Self) usize {
     return this.buffer.len;
 }
 
-pub fn slice(this: Self) []u8 {
+pub inline fn slice(this: Self) []u8 {
     return this.buffer[0..this.len];
 }
 
@@ -84,11 +84,28 @@ pub fn eql_str(this: Self, str: []const u8) bool {
 
 /// Declare a universal comparator function for future use cases
 pub fn cmp(this: Self, other: Self) bool {
-    return std.mem.lessThan(u8, this.slice(), other.slice());
+    const n = this.len;
+
+    if(n != other.len)
+        return n < other.len;
+
+    for(this.buffer[0..n], other.buffer[0..n]) |t, o|
+        if(t != o)
+            return t < o;
+            
+    return true;
+}
+
+pub fn find(this: Self, substr: Self) ?usize {
+    return this.find_str(substr.slice());
+}
+
+pub fn find_str(this: Self, substr: []const u8) ?usize {
+    return std.mem.indexOf(u8, this.slice(), substr);
 }
 
 pub fn format(this: Self, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-    try writer.print("\"{s}\"", .{this.slice()});
+    try writer.print("\"{s}\"", .{ this.slice() });
 }
 
 pub fn resize(this: *Self, cap: usize) Error!void {

@@ -6,9 +6,15 @@ const String = @import("string");
 
 
 pub fn main() !void {
-    // var dba = std.heap.DebugAllocator(.{}).init;
-    // defer _ = dba.deinit();
-    // const allocator = dba.allocator();
+    var dba = std.heap.DebugAllocator(.{}).init;
+    defer _ = dba.deinit();
+    const allocator = dba.allocator();
+
+    const thing = try allocator.alloc(i32, 8);
+    defer allocator.free(thing);
+    @memset(thing, 32);
+    const another: isize = -1;
+    std.debug.print("{}", .{ thing[another] });
 
     // var path = try search.BFS(allocator, 0, 11);
     // search.format(path);

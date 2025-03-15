@@ -12,9 +12,7 @@ pub const PosError = error{ InvalidPos };
 /// Can be used interchangeably as a Vector
 pub fn Stack(comptime T: type) type {
     comptime assert(@sizeOf(T) > 0);
-    const Type = comptime @typeInfo(T);
-    
-    const lt = comptime sw: switch(Type) {
+    const lt = comptime sw: switch(@typeInfo(T)) {
         .@"struct", .@"enum", .@"union" => {
             if(@hasDecl(T, "cmp")) {
                 break :sw struct {
@@ -417,8 +415,8 @@ pub fn Stack(comptime T: type) type {
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than sorts descending
-        pub fn sortSpec(this: *Self, comptime cmp: fn(T, T) bool) void {
-            qsort(this.arr(), cmp);
+        pub fn sortSpec(this: *Self, comptime comp: fn(T, T) bool) void {
+            qsort(this.arr(), comp);
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted according to comparator\
@@ -426,9 +424,9 @@ pub fn Stack(comptime T: type) type {
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
-        pub fn toSortedSpec(this: Self, comptime cmp: fn(T, T) bool) !Self {
+        pub fn toSortedSpec(this: Self, comptime comp: fn(T, T) bool) !Self {
             var buffer = try this.copy();
-            buffer.sortSpec(cmp);
+            buffer.sortSpec(comp);
 
             return buffer;
         }
@@ -438,21 +436,21 @@ pub fn Stack(comptime T: type) type {
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
-        pub fn toSortedArrSpec(this: Self, comptime cmp: fn(T, T) bool) ![]T {
+        pub fn toSortedArrSpec(this: Self, comptime comp: fn(T, T) bool) ![]T {
             const buffer = try this.arrCopy();
-            qsort(buffer, cmp);
+            qsort(buffer, comp);
 
             return buffer;
         }
 
 
-        fn internal(array: [*]T, left: usize, right: usize, cmp: fn(a: T, b: T) bool) void {
+        fn internal(array: [*]T, left: usize, right: usize, comp: fn(a: T, b: T) bool) void {
             if(right - left < 24) {
                 var i: usize = left + 1;
                 while(i <= right) : (i += 1) {
                     const k = array[i];
                     var j = i;
-                    while(j > left and cmp(k, array[j - 1])) : (j -= 1)
+                    while(j > left and comp(k, array[j - 1])) : (j -= 1)
                         array[j] = array[j - 1];
                     
                     array[j] = k;
@@ -461,11 +459,11 @@ pub fn Stack(comptime T: type) type {
             }
 
             const mid = (left + right) >> 1;
-            if(cmp(array[right], array[left]))
+            if(comp(array[right], array[left]))
                 _swap(&array[left], &array[right]);
-            if(cmp(array[mid], array[left]))
+            if(comp(array[mid], array[left]))
                 _swap(&array[left], &array[mid]);
-            if(cmp(array[mid], array[right]))
+            if(comp(array[mid], array[right]))
                 _swap(&array[mid],  &array[right]);
 
             const pivot = array[right];
@@ -473,8 +471,8 @@ pub fn Stack(comptime T: type) type {
             var j = right - 1;
 
             while(true) : ({ i += 1; j -= 1; }) {
-                while(cmp(array[i], pivot)) i += 1;
-                while(cmp(pivot, array[j])) j -= 1;
+                while(comp(array[i], pivot)) i += 1;
+                while(comp(pivot, array[j])) j -= 1;
 
                 if(i >= j)
                     break;
@@ -482,19 +480,19 @@ pub fn Stack(comptime T: type) type {
             }
 
             _swap(&array[i], &array[right]);
-            internal(array, left, i - 1, cmp);
-            internal(array, i + 1, right, cmp);
+            internal(array, left, i - 1, comp);
+            internal(array, i + 1, right, comp);
         }
         inline fn _swap(a: *T, b: *T) void {
             const t = a.*;
             a.* = b.*;
             b.* = t;
         }
-        fn qsort(array: []T, cmp: fn(T, T) bool) void {
+        fn qsort(array: []T, comp: fn(T, T) bool) void {
             const n = array.len;
 
             if(n > 1)
-                internal(array.ptr, 0, n - 1, cmp);
+                internal(array.ptr, 0, n - 1, comp);
         }
 
 

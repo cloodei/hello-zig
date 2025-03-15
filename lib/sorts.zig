@@ -69,19 +69,32 @@ fn internal(comptime T: type, arr: [*]T, left: usize, right: usize, comptime cmp
     internal(T, arr, i + 1, right, cmp);
 }
 
-/// Hoare partition, O(n ^ 2) worst case, O(n log(n)) otherwise\
-/// O(log(n)) space, but consumes stack frames and stack memory!!\
+/// Hoare partition, O(n ^ 2) worst case, O(n log(n)) otherwise. O(log(n)) space, but consumes stack frames and stack memory!
+/// 
 /// Defaults to < operator for ascending order (use operational for need of complicated comparisons)
 /// - Very efficient
 /// - Cache-friendly
 /// - Super fast
 pub fn quickSort(comptime T: type, arr: []T) void {
     const n = arr.len;
+    const lt = comptime sw: switch(@typeInfo(T)) {
+        .@"struct", .@"enum", .@"union" => {
+            if(@hasDecl(T, "cmp")) {
+                break :sw struct {
+                    fn lt(a: T, b: T) bool { return a.cmp(b); }
+                }.lt;
+            }
+            else {
+                continue :sw u8;
+            }
+        },
+        else => struct {
+            fn lt(a: T, b: T) bool { return a < b; }
+        }.lt
+    };
 
     if(n > 1) 
-        internal(T, arr.ptr, 0, n - 1, comptime struct {
-            fn lt(a: T, b: T) bool { return a < b; }
-        }.lt);
+        internal(T, arr.ptr, 0, n - 1, lt);
 }
 
 /// Hoare partition with comparator function, O(n ^ 2) worst case, O(n log(n)) otherwise\
@@ -174,9 +187,21 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
         return;
     }
 
-    const lt =  comptime struct {
-        fn lt(a: T, b: T) bool { return a < b; }
-    }.lt;
+    const lt = comptime sw: switch(@typeInfo(T)) {
+        .@"struct", .@"enum", .@"union" => {
+            if(@hasDecl(T, "cmp")) {
+                break :sw struct {
+                    fn lt(a: T, b: T) bool { return a.cmp(b); }
+                }.lt;
+            }
+            else {
+                continue :sw u8;
+            }
+        },
+        else => struct {
+            fn lt(a: T, b: T) bool { return a < b; }
+        }.lt
+    };
 
     const run = n - RUN;
     var i: usize = 0;
@@ -185,7 +210,7 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
     if(i < n)
         insertionSort(T, arr.ptr, i, n - 1);
 
-    const allocator = std.heap.c_allocator;
+    const allocator = std.heap.smp_allocator;
     const buffer = allocator.alloc(T, n) catch {
         @panic("Can't allocate temp buffer, consider in-place sorts!");
     };
@@ -236,9 +261,21 @@ fn heapify(comptime T: type, arr: [*]T, size: usize, root: usize, comptime cmp: 
 /// 
 /// Controllably stably fast + memory friendly
 pub fn heapSort(comptime T: type, arr: []T) void {
-    const lt = comptime struct {
-        fn lt(a: T, b: T) bool { return a < b; }
-    }.lt;
+    const lt = comptime sw: switch(@typeInfo(T)) {
+        .@"struct", .@"enum", .@"union" => {
+            if(@hasDecl(T, "cmp")) {
+                break :sw struct {
+                    fn lt(a: T, b: T) bool { return a.cmp(b); }
+                }.lt;
+            }
+            else {
+                continue :sw u8;
+            }
+        },
+        else => struct {
+            fn lt(a: T, b: T) bool { return a < b; }
+        }.lt
+    };
 
     const n = arr.len;
     var i = n / 2;
