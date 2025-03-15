@@ -74,6 +74,71 @@ pub fn concat_str(this: *Self, str: []const u8) Error!void {
     @memcpy(this.buffer.ptr + n, str);
 }
 
+pub fn insert(this: *Self, str: Self, pos: usize) Error!void {
+    if(str.len == 0)
+        return;
+
+    try this.insert_str(str.slice(), pos);
+}
+
+pub fn insert_str(this: *Self, str: []const u8, pos: usize) Error!void {
+    const n = this.len;
+    if(pos > n)
+        return Error.InvalidRange;
+
+    const extend = str.len;
+    const cap = this.capacity();
+    if(n + extend >= cap) {
+        const newCap = if(extend > cap) cap + extend + 2 * @log2(extend + cap + n) else cap * 2;
+        if(!this.allocator.resize(this.buffer, newCap)) {
+            const mem = try this.allocator.alloc(u8, newCap);
+            @memcpy(mem.ptr, this.buffer[0..pos]);
+            @memcpy(mem.ptr + pos, str);
+            @memcpy(mem.ptr + pos + extend, this.buffer[pos..n]);
+
+            this.deinit();
+            this.buffer = mem;
+            this.len += extend;
+            return;
+        }
+    }
+    @memcpy(this.buffer.ptr + pos + extend, this.buffer[pos..n]);
+    @memcpy(this.buffer.ptr + pos, str);
+    this.len += extend;
+}
+
+pub fn pop(this: *Self) ?u8 {
+    if(this.len == 0)
+        return null;
+    
+    return this.pop_assume_cap();
+}
+
+pub fn pop_assume_cap(this: *Self) u8 {
+    this.len -= 1;
+    return this.buffer[this.len];
+}
+
+pub fn truncate(this: *Self, len: usize) void {
+    const n = this.len;
+    if(len > n or n == 0)
+        return;
+    
+    this.len -= len;
+}
+
+pub fn remove(this: *Self, substr: Self) void {
+    this.remove_str(substr.slice());
+}
+
+pub fn remove_str(this: *Self, substr: []const u8) void {
+    const index = this.find_str(substr) orelse return;
+    if(index) {
+        
+    }
+}
+
+
 pub fn eql(this: Self, str: Self) bool {
     return std.mem.eql(u8, this.slice(), str.slice());
 }
@@ -81,6 +146,7 @@ pub fn eql(this: Self, str: Self) bool {
 pub fn eql_str(this: Self, str: []const u8) bool {
     return std.mem.eql(u8, this.slice(), str);
 }
+
 
 /// Declare a universal comparator function for future use cases
 pub fn cmp(this: Self, other: Self) bool {

@@ -182,7 +182,7 @@ pub fn Stack(comptime T: type) type {
         /// 
         /// Resizes in-place if possible, else copy resize on overflow
         pub fn unshift(this: *Self, elem: T) !void {
-            return this.insert(elem, 0);
+            try this.insert(elem, 0);
         }
 
         /// Pushes another Stack at the end of current Stack
@@ -273,18 +273,18 @@ pub fn Stack(comptime T: type) type {
         }
 
         /// Removes first element (bottom of Stack) from Stack and returns it, decrement length. Shifts entire Stack down, O(n) time
-        pub fn shift(this: *Self) !T {
+        pub fn shift(this: *Self) ?T {
             return this.remove(0);
         }
 
         /// Removes element at exactly items[pos] from Stack and returns it, decrement length, O(n) time
-        pub fn remove(this: *Self, pos: usize) !T {
+        pub fn remove(this: *Self, pos: usize) ?T {
             if(this.len == 0)
-                return LengthError.InsufficientLength;
+                return null;
                 
             const n = this.len - 1;
             if(pos > n)
-                return PosError.InvalidPos;
+                return null;
 
             const res = this.items[pos];
             var i = pos;
@@ -296,23 +296,23 @@ pub fn Stack(comptime T: type) type {
         }
 
         /// Crop the last length elements from the Stack
-        pub fn truncate(this: *Self, length: usize) LengthError!void {
+        pub fn truncate(this: *Self, length: usize) void {
             if(length > this.len or this.len == 0)
-                return LengthError.InsufficientLength;
+                return;
 
             this.len -= length;
         }
 
         /// Crop all elements from items[start .. end] (inclusively, allowed from [0..n])
-        pub fn crop(this: *Self, start: usize, end: usize) LengthError!void {
+        pub fn crop(this: *Self, start: usize, end: usize) void {
             if(end < start)
-                return LengthError.InvalidLength;
+                return;
 
             const n = this.len;
             const len: usize = end - start + 1;
             
             if(len > n or n == 0)
-                return LengthError.InsufficientLength;
+                return;
 
             this.len -= len;
             if(end == n)
