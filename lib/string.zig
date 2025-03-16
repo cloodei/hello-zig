@@ -10,6 +10,8 @@ allocator: Allocator,
 buffer: []u8,
 len: usize,
 
+
+/// Initialize an empty String with `allocator`
 pub inline fn init(allocator: Allocator) Error!Self {
     return Self{
         .allocator = allocator,
@@ -18,7 +20,8 @@ pub inline fn init(allocator: Allocator) Error!Self {
     };
 }
 
-pub fn init_from(str: Self) Error!Self {
+/// Initialize a new allocated copied String from `str`
+pub fn init_copy(str: Self) Error!Self {
     const n = str.len;
     const mem = try str.allocator.alloc(u8, n);
     @memcpy(mem.ptr, str.buffer[0..n]);
@@ -30,15 +33,7 @@ pub fn init_from(str: Self) Error!Self {
     };
 }
 
-/// Does not allocate, instead takes from a string literal (Do not deinit()!!)
-pub fn init_contents(str: []const u8) Error!Self {
-    return Self{
-        .allocator = std.heap.smp_allocator,
-        .buffer = @constCast(str),
-        .len = str.len,
-    };
-}
-
+/// Initialize a new allocated String as a copy of `str`
 pub fn init_copy_str(str: []const u8) Error!Self {
     const allocator = std.heap.smp_allocator;
     const mem = try allocator.alloc(u8, str.len);
@@ -51,18 +46,38 @@ pub fn init_copy_str(str: []const u8) Error!Self {
     };
 }
 
+/// Does not allocate, instead takes from a string literal (Do not deinit()!! unless a new string was pushed, or resize was caused)
+pub fn init_contents(str: []const u8) Error!Self {
+    return Self{
+        .allocator = std.heap.smp_allocator,
+        .buffer = @constCast(str),
+        .len = str.len,
+    };
+}
+
+/// Deallocate String
 pub fn deinit(this: *Self) void {
     this.allocator.free(this.buffer);
 }
 
+
+/// Return inner buffer's maximum element occupancy
 pub inline fn capacity(this: Self) usize {
     return this.buffer.len;
 }
 
+/// Return the entire slice of contained elements/characters in the String
 pub inline fn slice(this: Self) []u8 {
     return this.buffer[0..this.len];
 }
 
+/// Return a boolean check if String length is empty
+pub inline fn empty(this: Self) bool {
+    return this.len == 0;
+}
+
+
+/// Push `str` to the end of current String
 pub fn concat(this: *Self, string: Self) Error!void {
     if(string.len == 0) {
         @branchHint(.cold);
@@ -72,12 +87,30 @@ pub fn concat(this: *Self, string: Self) Error!void {
     try this.concat_str(string.slice());
 }
 
+/// Push `str` to the end of current String
 pub fn concat_str(this: *Self, str: []const u8) Error!void {
     const n = this.len;
     try this.resize(n + str.len);
     @memcpy(this.buffer.ptr + n, str);
 }
 
+/// Return a newly allocated, concatenated string between `this` (current String) and `str`
+pub fn to_concat(this: Self, str: Self) Error!Self {
+    var res = try init_copy(this);
+    res.concat(str);
+    
+    return res;
+}
+
+/// Return a newly allocated, concatenated string between `this` (current String) and `str`
+pub fn to_concat_str(this: Self, str: []const u8) Error!Self {
+    var res = try init_copy(this);
+    res.concat_str(str);
+
+    return res;
+}
+
+/// Insert `str` at exactly `pos` index in the String
 pub fn insert(this: *Self, str: Self, pos: usize) Error!void {
     const n = str.len;
     if(n == 0) {
@@ -88,6 +121,7 @@ pub fn insert(this: *Self, str: Self, pos: usize) Error!void {
     try this.insert_str(str.buffer[0..n], pos);
 }
 
+/// Insert `str` at exactly `pos` index in the String
 pub fn insert_str(this: *Self, str: []const u8, pos: usize) Error!void {
     const n = this.len;
     if(pos > n)
@@ -116,6 +150,8 @@ pub fn insert_str(this: *Self, str: []const u8, pos: usize) Error!void {
     this.len += extend;
 }
 
+
+/// Return the character at the end of current String, or null if empty
 pub fn pop(this: *Self) ?u8 {
     if(this.len == 0) {
         @branchHint(.unlikely);
@@ -125,23 +161,42 @@ pub fn pop(this: *Self) ?u8 {
     return this.pop_assume_cap();
 }
 
+/// Return the character at the end of current String (can panic and error out!)
 pub fn pop_assume_cap(this: *Self) u8 {
     this.len -= 1;
     return this.buffer[this.len];
 }
 
+/// Remove the last `len` characters from current String
 pub fn truncate(this: *Self, len: usize) void {
-    const n = this.len;
-    if(len > n or n == 0)
+    if(len > this.len) {
+        @branchHint(.unlikely);
         return;
+    }
 
     this.len -= len;
 }
 
+/// Crop all characters from [`start`..`end`) (allowed from [0 .. n - 1])
+pub fn crop(this: *Self, start: usize, end: usize) void {
+    const n = this.len;
+    if(start > end or end > n) {
+        @branchHint(.unlikely);
+        return;
+    }
+    
+    for(end..n, start..) |pos, i|
+        this.items[i] = this.items[pos];
+
+    this.len -= end - start;
+}
+
+/// Remove `substr` from current string
 pub fn remove(this: *Self, substr: Self) void {
     this.remove_str(substr.slice());
 }
 
+/// Remove `substr` from current string
 pub fn remove_str(this: *Self, substr: []const u8) void {
     const n = this.len;
     if(n == 0) {
@@ -150,57 +205,30 @@ pub fn remove_str(this: *Self, substr: []const u8) void {
     }
 
     const m = substr.len;
-    if(this.find_str(substr)) |index| {
-        const crop = m + index;
-        for(index..crop, n..) |thing, i| {
-            this.buffer[i] = this.buffer[thing];
-        }
-        this.len -= m;
-    }
+    const index = this.find_str(substr) orelse return;
+    const chop = m + index;
+
+    for(index..chop, n..) |j, i|
+        this.buffer[i] = this.buffer[j];
+        
+    this.len -= m;
 }
 
-pub fn eql(this: Self, str: Self) bool {
-    return std.mem.eql(u8, this.slice(), str.slice());
-}
-
-pub fn eql_str(this: Self, str: []const u8) bool {
-    return std.mem.eql(u8, this.slice(), str);
-}
-
-/// Declare a universal comparator function for future use cases
-pub fn cmp(this: Self, other: Self) bool {
-    const n = this.len;
-
-    if(n != other.len)
-        return n < other.len;
-
-    for(this.buffer[0..n], other.buffer[0..n]) |t, o|
-        if(t != o)
-            return t < o;
-
-    return true;
-}
-
-pub fn find(this: Self, substr: Self) ?usize {
-    return this.find_str(substr.slice());
-}
-
-pub fn find_str(this: Self, substr: []const u8) ?usize {
-    return std.mem.indexOf(u8, this.slice(), substr);
-}
-
-pub fn trim(this: *Self) void {
-    this.trim_left();
-    this.trim_right();
-}
-
+/// Return a newly allocated, trimmed of all whitespace characters (" ") String from current String
 pub fn to_trim(this: Self) !Self {
-    var res = try init_from(this);
+    var res = try init_copy(this);
     res.trim();
 
     return res;
 }
 
+/// Trim all whitespace characters (" ") at both ends of the String
+pub fn trim(this: *Self) void {
+    this.trim_left();
+    this.trim_right();
+}
+
+/// Trim all whitespace (" ") character at the start of the String
 pub fn trim_left(this: *Self) void {
     const n = this.len;
     if(n == 0) {
@@ -211,6 +239,8 @@ pub fn trim_left(this: *Self) void {
     var trimmed: usize = 0;
     while(this.buffer[trimmed] == ' ' and trimmed < n)
         trimmed += 1;
+    if(trimmed == 0)
+        return;
 
     for(trimmed..n, 0..) |j, i|
         this.buffer[i] = this.buffer[j];
@@ -218,6 +248,7 @@ pub fn trim_left(this: *Self) void {
     this.len -= trimmed;
 }
 
+/// Trim all whitespace (" ") character at the end of the String
 pub fn trim_right(this: *Self) void {
     var n = this.len;
     if(n == 0) {
@@ -236,7 +267,44 @@ pub fn trim_right(this: *Self) void {
     this.len = n;
 }
 
-/// Returns a new string with all occurrences of `from` replaced with `to`
+
+/// Return a boolean comparison between current String and `str`
+pub fn eql(this: Self, str: Self) bool {
+    return std.mem.eql(u8, this.slice(), str.slice());
+}
+
+/// Return a boolean comparison between current String and `str`
+pub fn eql_str(this: Self, str: []const u8) bool {
+    return std.mem.eql(u8, this.slice(), str);
+}
+
+/// Declare a universal comparator function for future use cases
+/// 
+/// Return `true` if `this` has a lower alphabetical order than `other`, else `false`
+pub fn cmp(this: Self, other: Self) bool {
+    const n = this.len;
+
+    if(n != other.len)
+        return n < other.len;
+
+    for(this.buffer[0..n], other.buffer[0..n]) |t, o|
+        if(t != o)
+            return t < o;
+
+    return true;
+}
+
+/// Find the index of the first occurrence of `substr` in the String
+pub fn find(this: Self, substr: Self) ?usize {
+    return this.find_str(substr.slice());
+}
+
+/// Find the index of the first occurrence of `substr` in the String
+pub fn find_str(this: Self, substr: []const u8) ?usize {
+    return std.mem.indexOf(u8, this.slice(), substr);
+}
+
+/// Return a new string with all occurrences of `from` replaced with `to`
 pub fn replace(this: Self, from: []const u8, to: []const u8) Error!Self {
     var result = try Self.init(this.allocator);
     var start: usize = 0;
@@ -244,15 +312,11 @@ pub fn replace(this: Self, from: []const u8, to: []const u8) Error!Self {
     while(start < this.len) {
         const maybe_pos = std.mem.indexOfPos(u8, this.slice(), start, from);
         if(maybe_pos) |pos| {
-            // Add everything up to the match
             try result.concat_str(this.buffer[start..pos]);
-            // Add the replacement
             try result.concat_str(to);
-            // Move past the match
             start = pos + from.len;
         }
         else {
-            // Add the rest of the string
             try result.concat_str(this.buffer[start..this.len]);
             break;
         }
@@ -261,22 +325,25 @@ pub fn replace(this: Self, from: []const u8, to: []const u8) Error!Self {
     return result;
 }
 
-/// Splits the string by a delimiter and returns an array of strings
+/// Split the string by `delimiter` and return an array of strings
 pub fn split(this: Self, delimiter: []const u8) Error!Stack(Self) {
-    var result = Stack(Self).init(this.allocator, 4);
+    const n = this.len;
+    const m = delimiter.len;
+
+    var result = Stack(Self).init(this.allocator, 4 + 2 * @log2(n));
     var start: usize = 0;
 
-    while(start < this.len) {
+    while(start < n) {
         const checkPos = std.mem.indexOfPos(u8, this.slice(), start, delimiter);
         if(checkPos) |pos| {
             var part = try Self.init(this.allocator);
             try part.concat_str(this.buffer[start..pos]);
             try result.push(part);
-            start = pos + delimiter.len;
+            start = pos + m;
         }
         else {
             var part = try Self.init(this.allocator);
-            try part.concat_str(this.buffer[start..this.len]);
+            try part.concat_str(this.buffer[start..n]);
             try result.push(part);
             break;
         }
@@ -285,11 +352,14 @@ pub fn split(this: Self, delimiter: []const u8) Error!Stack(Self) {
     return result;
 }
 
-pub fn to_lower(char: u8) u8 {
+
+/// Return the lowercase character for `char`
+pub inline fn to_lower(char: u8) u8 {
     return std.ascii.toLower(char);
 }
 
-pub fn to_upper(char: u8) u8 {
+/// Return the uppercase character for `char`
+pub inline fn to_upper(char: u8) u8 {
     return std.ascii.toUpper(char);
 }
 
@@ -305,16 +375,27 @@ pub fn upper(this: *Self) void {
         this.buffer[i] = to_upper(this.buffer[i]);
 }
 
-/// Returns whether the string starts with `prefix`
-pub fn starts_with(this: Self, prefix: []const u8) bool {
+
+/// Return whether current String starts with `prefix`
+pub fn starts_with(this: Self, prefix: Self) bool {
+    return this.starts_with_str(prefix.slice());
+}
+
+/// Return whether current String starts with `prefix`
+pub fn starts_with_str(this: Self, prefix: []const u8) bool {
     if(prefix.len > this.len)
         return false;
 
     return std.mem.eql(u8, this.buffer[0..prefix.len], prefix);
 }
 
-/// Returns whether the string ends with `suffix`
-pub fn ends_with(this: Self, suffix: []const u8) bool {
+/// Return whether current String ends with `suffix`
+pub fn ends_with(this: Self, suffix: Self) bool {
+    return this.ends_with_str(suffix.slice());
+}
+
+/// Return whether current String ends with `suffix`
+pub fn ends_with_str(this: Self, suffix: []const u8) bool {
     const n = this.len;
     if(suffix.len > n)
         return false;
@@ -323,7 +404,7 @@ pub fn ends_with(this: Self, suffix: []const u8) bool {
     return std.mem.eql(u8, this.buffer[start..n], suffix);
 }
 
-/// Returns a substring from the given range
+/// Return a substring from `start` to `end` (allowed from [0..n), half-inclusively)
 pub fn substring(this: Self, start: usize, end: usize) Error!Self {
     if(start > end or end > this.len)
         return;
@@ -333,30 +414,32 @@ pub fn substring(this: Self, start: usize, end: usize) Error!Self {
     return result;
 }
 
-/// Returns the number of occurrences of a substring
-pub fn count(this: Self, substr: []const u8) usize {
+/// Return the number of occurrences of `substr`
+pub fn count(this: Self, substr: Self) usize {
+    return this.count_str(substr.slice());
+}
+
+/// Return the number of occurrences of `substr`
+pub fn count_str(this: Self, substr: []const u8) usize {
     var cnt: usize = 0;
     var start: usize = 0;
 
     while(start < this.len) {
-        const checkPos = std.mem.indexOfPos(u8, this.slice(), start, substr);
-        if(checkPos) |pos| {
-            cnt += 1;
-            start = pos + substr.len;
-        }
-        else {
-            break;
-        }
+        const checkPos = std.mem.indexOfPos(u8, this.slice(), start, substr) orelse break;
+        cnt += 1;
+        start = checkPos + substr.len;
     }
 
     return cnt;
 }
 
-/// Expose a formatter for the String type, printing at the format "buffer[0..n]"
+
+/// Expose a formatter for the String type, printing at the format "`buffer[0..n]`"
 pub fn format(this: Self, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-    try writer.print("\"{s}\"", .{this.slice()});
+    try writer.print("\"{s}\"", .{ this.slice() });
 }
 
+/// Attempt an in-place resizing for the String, else copy resize
 pub fn resize(this: *Self, cap: usize) Error!void {
     if(cap <= this.capacity())
         return;

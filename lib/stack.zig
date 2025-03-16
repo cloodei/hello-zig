@@ -308,25 +308,76 @@ pub fn Stack(comptime T: type) type {
             this.len -= length;
         }
 
-        /// Crop all elements from items[`start` .. `end`] (inclusively, allowed from [0..n])
+        /// Crop all elements from [`start`..`end`) (allowed from [0 .. n - 1])
         pub fn crop(this: *Self, start: usize, end: usize) void {
-            if(end < start) {
+            const n = this.len;
+            if(end < start or end > n) {
                 @branchHint(.unlikely);
                 return;
             }
 
-            const n = this.len;
-            const len: usize = end - start + 1;
-            
-            if(len > n or n == 0)
-                return;
+            for(end..n, start..) |pos, i|
+                this.items[i] = this.items[pos];
 
-            this.len -= len;
-            if(end == n)
-                return;
+            this.len -= end - start;
+        }
+
+
+        /// Return the index of the first occurrence of `target` or null if not found
+        pub fn find(this: Self, target: T) ?usize {
+            for(0..this.len) |i|
+                if(this.items[i] == target)
+                    return i;
             
-            for(end..n, 0..) |pos, i|
-                this.items[start + i] = this.items[pos];
+            return null;
+        }
+
+        /// Return the index of the first occurrence of `target` or null if not found, using `check` between Stack elements and target
+        pub fn findSpec(this: Self, target: T, comptime check: fn(a: T, b: T) bool) ?usize {
+            for(0..this.len) |i|
+                if(check(this.items[i], target))
+                    return i;
+            
+            return null;
+        }
+
+        /// Return the amount of `target` currently in the Stack
+        pub fn count(this: Self, target: T) usize {
+            var res: usize = 0;
+
+            for(this.arr()) |thing| {
+                if(thing == target)
+                    res += 1;
+            }
+            return res;
+        }
+
+        /// Return the amount of `target` currently in the Stack, using `check` between Stack elements and target
+        pub fn countSpec(this: Self, target: T, comptime check: fn(a: T, b: T) bool) usize {
+            var res: usize = 0;
+
+            for(this.arr()) |thing| {
+                if(check(thing, target))
+                    res += 1;
+            }
+
+            return res;
+        }
+
+        /// Return whether `target` is in the Stack
+        pub fn contains(this: Self, target: T) bool {
+            if(this.find(target))
+                return true;
+            
+            return false;
+        }
+
+        /// Return whether `target` is in the Stack, using `check` between Stack elements and target
+        pub fn containsSpec(this: Self, target: T, comptime check: fn(a: T, b: T) bool) bool {
+            if(this.findSpec(target, check))
+                return true;
+            
+            return false;
         }
 
 
