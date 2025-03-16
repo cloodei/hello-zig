@@ -74,6 +74,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("string", string_mod);
+    string_mod.addImport("stack", stack_mod);
 
     const bench_mod = b.createModule(.{
         .root_source_file = b.path("curr/benchmark.zig"),

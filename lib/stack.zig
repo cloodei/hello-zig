@@ -7,9 +7,9 @@ const assert = std.debug.assert;
 pub const LengthError = error{ InsufficientLength, InvalidLength };
 pub const PosError = error{ InvalidPos };
 
-/// Internally stores Allocator, the list [ ] of items, and the current length\
-/// Has an internal lessThan operator function, can be exchanged if needed
-/// Can be used interchangeably as a Vector
+/// Internally stores Allocator, the list[ ] of items, and the current length\
+/// Has an internal lessThan operator function, can be exchanged if needed\
+/// Can be used almost interchangeably as a Vector (ArrayList)
 pub fn Stack(comptime T: type) type {
     comptime assert(@sizeOf(T) > 0);
     const lt = comptime sw: switch(@typeInfo(T)) {
@@ -43,7 +43,7 @@ pub fn Stack(comptime T: type) type {
 
 
         /// Highly recommend DBA allocator!\
-        /// Init Stack with an Allocator and a starting capacity
+        /// Init Stack with `allocator` and a starting `Capacity`
         pub fn init(allocator: std.mem.Allocator, Capacity: usize) Self {
             assert(Capacity != 0);
             
@@ -56,12 +56,12 @@ pub fn Stack(comptime T: type) type {
             };
         }
 
-        /// Init Stack with a starting cap
+        /// Init Stack with a starting `Capacity`
         pub inline fn initCap(Capacity: usize) Self {
             return init(std.heap.smp_allocator, Capacity);
         }
 
-        /// Init Stack with Allocator
+        /// Init Stack with `allocator`
         pub inline fn initAllocator(allocator: std.mem.Allocator) Self {
             return init(allocator, 8);
         }
@@ -92,7 +92,7 @@ pub fn Stack(comptime T: type) type {
             return this.items[this.len - 1];
         }
 
-        /// Swaps two elements at items[i] and items[j]
+        /// Swaps two elements at items[`i`] and items[`j`]
         pub inline fn swap(this: *Self, i: usize, j: usize) void {
             const t = this.items[i];
             this.items[i] = this.items[j];
@@ -102,7 +102,7 @@ pub fn Stack(comptime T: type) type {
         /// Attempt a resize with a bigger capacity for the Stack
         pub fn resize(this: *Self, cap: usize) !void {
             if(this.capacity() >= cap)
-                return LengthError.InvalidLength;
+                return;
 
             if(!this.allocator.resize(this.items, cap)) {
                 const mem = try this.allocator.alloc(T, cap);
@@ -122,13 +122,13 @@ pub fn Stack(comptime T: type) type {
 
         /// Unsafe, unguarded push. Use only when overflow is guaranteed impossible
         /// 
-        /// Adds 1 element to top of Stack, increments length, O(1) time
+        /// Adds `elem` to top of Stack, increments length, O(1) time
         pub inline fn pushAssumeCap(this: *Self, elem: T) void {
             this.items[this.len] = elem;
             this.len += 1;
         }
 
-        /// Adds 1 element to top of Stack, increments length, amortized O(1) time
+        /// Adds `elem` to top of Stack, increments length, amortized O(1) time
         /// 
         /// Resizes in-place if possible, else copy resize on overflow
         pub fn push(this: *Self, elem: T) void {
@@ -147,14 +147,14 @@ pub fn Stack(comptime T: type) type {
             this.pushAssumeCap(elem);
         }
 
-        /// Adds 1 elem exactly at items[pos] (inclusively, pos allowed from [0..n])\
-        /// O(n) time guaranteed, besides pos ~= n
+        /// Adds `elem` exactly at items[`pos`] (inclusively, `pos` allowed from [0..n])\
+        /// O(n) time guaranteed, besides `pos` ~= n
         /// 
         /// Resizes in-place if possible, else copy resize on overflow
         pub fn insert(this: *Self, elem: T, pos: usize) !void {
             const n = this.len;
             if(pos > n)
-                return PosError.InvalidPos;
+                return;
 
             if(this.capacity() == n) {
                 const newCap: usize = n * 2;
@@ -178,21 +178,21 @@ pub fn Stack(comptime T: type) type {
             this.len += 1;
         }
 
-        /// Adds an element at the first position (bottom of Stack), shifts entire Stack upwards. Full O(n) time
+        /// Adds `elem` at the first position (bottom of Stack), shifts entire Stack upwards. Full O(n) time
         /// 
         /// Resizes in-place if possible, else copy resize on overflow
         pub fn unshift(this: *Self, elem: T) !void {
             try this.insert(elem, 0);
         }
 
-        /// Pushes another Stack at the end of current Stack
+        /// Pushes `other` Stack at the end of current Stack
         /// 
         /// Resizes in-place if possible, else copy resize on overflow
         pub fn append(this: *Self, other: Self) !void {
             try this.appendArr(other.arr());
         }
 
-        /// Pushes buffer at the end of current Stack
+        /// Pushes `buffer` at the end of current Stack
         /// 
         /// Resizes in-place if possible, else copy resize on overflow
         pub fn appendArr(this: *Self, buffer: []T) !void {
@@ -217,20 +217,22 @@ pub fn Stack(comptime T: type) type {
             this.len += extend;
         }
 
-        /// Adds another Stack at exactly items[pos] (allowed from [0..n]), shifting every element above pos to accommodate
+        /// Adds another Stack at exactly items[`pos`] (allowed from [0..n]), shifting every element above `pos` to accommodate
         pub fn add(this: *Self, other: Self, pos: usize) !void {
             try this.addArr(other.arr(), pos);
         }
         
-        /// Adds buffer at exactly items[pos] (allowed from [0..n]), shifting every element above pos to accommodate
+        /// Adds buffer at exactly items[`pos`] (allowed from [0..n]), shifting every element above `pos` to accommodate
         pub fn addArr(this: *Self, buffer: []T, pos: usize) !void {
             const extend = buffer.len;
-            if(extend == 0)
+            if(extend == 0) {
+                @branchHint(.cold);
                 return;
+            }
 
             const n = this.len;
             if(pos > n)
-                return PosError.InvalidPos;
+                return;
 
             const cap = this.capacity();
             if(extend + n >= cap) {
@@ -261,8 +263,11 @@ pub fn Stack(comptime T: type) type {
 
         /// Removes top element from Stack and returns it, decrement length, O(1) time
         pub inline fn pop_safe(this: *Self) ?T {
-            if(this.len == 0)
+            if(this.len == 0) {
+                @branchHint(.unlikely);
                 return null;
+            }
+
             return this.pop();
         }
 
@@ -277,7 +282,7 @@ pub fn Stack(comptime T: type) type {
             return this.remove(0);
         }
 
-        /// Removes element at exactly items[pos] from Stack and returns it, decrement length, O(n) time
+        /// Removes element at exactly items[`pos`] from Stack and returns it, decrement length, O(n) time
         pub fn remove(this: *Self, pos: usize) ?T {
             if(this.len == 0)
                 return null;
@@ -295,7 +300,7 @@ pub fn Stack(comptime T: type) type {
             return res;
         }
 
-        /// Crop the last length elements from the Stack
+        /// Crop the last `length` elements from the Stack
         pub fn truncate(this: *Self, length: usize) void {
             if(length > this.len or this.len == 0)
                 return;
@@ -303,10 +308,12 @@ pub fn Stack(comptime T: type) type {
             this.len -= length;
         }
 
-        /// Crop all elements from items[start .. end] (inclusively, allowed from [0..n])
+        /// Crop all elements from items[`start` .. `end`] (inclusively, allowed from [0..n])
         pub fn crop(this: *Self, start: usize, end: usize) void {
-            if(end < start)
+            if(end < start) {
+                @branchHint(.unlikely);
                 return;
+            }
 
             const n = this.len;
             const len: usize = end - start + 1;
@@ -323,32 +330,39 @@ pub fn Stack(comptime T: type) type {
         }
 
 
-        /// Copy current Stack into array
-        pub fn copyIntoArr(this: Self, buffer: []T) LengthError!void {
-            if(buffer.len >= this.len)
-                return LengthError.InvalidLength;
+        /// Copy current Stack into `buffer`
+        pub fn copyIntoArr(this: Self, buffer: []T) void {
+            if(buffer.len < this.len) {
+                @branchHint(.unlikely);
+                return;
+            }
 
             @memcpy(buffer.ptr, this.arr());
         }
 
         /// Copy current Stack into other Stack
-        pub fn copyInto(this: Self, other: *Self) !void {
-            try this.copyIntoArr(other.items);
+        pub fn copyInto(this: Self, other: *Self) void {
+            if(other.capacity() < this.len) {
+                @branchHint(.unlikely);
+                return;
+            }
+
+            this.copyIntoArr(other.items);
             other.len = this.len;
         }
 
         /// Get a new array as copy of the entire Stack
         pub fn arrCopy(this: Self) ![]T {
             const buffer = try this.allocator.alloc(T, this.len);
-            try this.copyIntoArr(buffer);
+            this.copyIntoArr(buffer);
 
             return buffer;
         }
 
         /// Get a new allocated copy of current Stack
-        pub fn copy(this: Self) !Self {
+        pub fn copy(this: Self) Self {
             var buffer = init(this.allocator, this.len);
-            try this.copyInto(&buffer);
+            this.copyInto(&buffer);
 
             return buffer;
         }
@@ -356,9 +370,9 @@ pub fn Stack(comptime T: type) type {
         /// Take complete ownership of other Stack's memory, rendering it undefined (completely O(1), does not copy)
         /// 
         /// other Stack's pointer cannot access its now-moved memory (becomes 0-slice). Current Stack is freed
-        pub fn take(this: *Self, other: *Self) LengthError!void {
+        pub fn take(this: *Self, other: *Self) void {
             if(other.len == 0)
-                return LengthError.InsufficientLength;
+                return;
 
             this.deinit();
             this.items = other.items;
@@ -393,8 +407,8 @@ pub fn Stack(comptime T: type) type {
 
         /// Return a new Stack as an allocated copy of current Stack, sorted in ascending order\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
-        pub fn toSorted(this: Self) !Self {
-            var buffer = try this.copy();
+        pub fn toSorted(this: Self) Self {
+            var buffer = this.copy();
             buffer.sort();
 
             return buffer;
@@ -424,8 +438,8 @@ pub fn Stack(comptime T: type) type {
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
-        pub fn toSortedSpec(this: Self, comptime comp: fn(T, T) bool) !Self {
-            var buffer = try this.copy();
+        pub fn toSortedSpec(this: Self, comptime comp: fn(T, T) bool) Self {
+            var buffer = this.copy();
             buffer.sortSpec(comp);
 
             return buffer;
