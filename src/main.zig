@@ -1,14 +1,62 @@
 const std = @import("std");
+const rand = @import("rand");
+const utils = @import("utils");
+const String = @import("string");
 const search = @import("search.zig");
 const runner = @import("runner.zig");
 const Stack = @import("stack").Stack;
-const String = @import("string");
 
+const time = std.time;
+const SIZE = 268_435_456; // 256 MB
+
+
+fn check(dst: anytype, src: anytype) bool {
+    for(0..src.len) |i|
+        if(src[i] != dst[i])
+            return false;
+
+    return true;
+}
 
 pub fn main() !void {
-    // var dba = std.heap.DebugAllocator(.{}).init;
-    // defer _ = dba.deinit();
-    // const allocator = dba.allocator();
+    var dba = std.heap.DebugAllocator(.{}).init;
+    defer _ = dba.deinit();
+    const allocator = dba.allocator();
+
+    const src = rand.rand_int_arr_min(i32, allocator, SIZE, 1);
+    defer rand.free_rand_arr(allocator, src);
+
+    const dst1 = try allocator.alloc(i32, SIZE);
+    var start = time.microTimestamp();
+    utils._memcpy(dst1.ptr, src.ptr, SIZE);
+    var end = time.microTimestamp();
+    const memcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
+    const memcpyCheck = check(dst1, src);
+    allocator.free(dst1);
+
+    const dst2 = try allocator.alloc(i32, SIZE);
+    start = time.microTimestamp();
+    @memcpy(dst2.ptr, src);
+    end = time.microTimestamp();
+    const stdcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
+    const stdcpyCheck = check(dst2, src);
+    allocator.free(dst2);
+
+    const dst3 = try allocator.alloc(i32, SIZE);
+    start = time.microTimestamp();
+    var i: usize = 0;
+    while(i != dst3.len) : (i += 1)
+        dst3[i] = src[i];
+    end = time.microTimestamp();
+    const forcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
+    const forcpyCheck = check(dst3, src);
+    allocator.free(dst3);
+
+    std.debug.print("Memcpy    : {d} ms | {}\nZig memcpy: {d} ms | {}\nFor memcpy: {d} ms | {}\n", .{
+        memcpyTime, memcpyCheck,
+        stdcpyTime, stdcpyCheck,
+        forcpyTime, forcpyCheck,
+    });
 
     // var path = try search.BFS(allocator, 0, 11);
     // search.format(path);
@@ -19,13 +67,13 @@ pub fn main() !void {
     // path = try search.BFS(allocator, 0, 11);
     // search.format(path);
     // allocator.free(path);
-    
+
     // try runner.run_all_sorts_bench_with_check(false);
     // try runner.run_all_sorts_bench_simul(false);
     // try runner.run_all_sorts_bench(false);
 
-    // try runner.run_memcpys_bench(true);
-    // try runner.run_memsets_bench(true);
+    // try runner.run_memcpys_bench(false);
+    // try runner.run_memsets_bench(false);
 
     // try runner.run_all_search(false);
 }

@@ -11,7 +11,7 @@ pub inline fn cryptoRand() std.Random {
 }
 
 
-pub fn free_rand_arr(comptime T: type, allocator: std.mem.Allocator, arr: []T) void {
+pub fn free_rand_arr(allocator: std.mem.Allocator, arr: anytype) void {
     allocator.free(arr);
 }
 

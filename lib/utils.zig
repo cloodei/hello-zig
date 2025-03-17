@@ -21,6 +21,7 @@ pub fn memcpy(_dst: anytype, _src: @TypeOf(_dst), size: usize) void {
     _ = c.memcpy(@alignCast(@ptrCast(dst_ptr)), @alignCast(@ptrCast(src_ptr)), size * @sizeOf(info.child));
 }
 
+/// Same as memcpy but only accepts slice pointers [*]
 pub fn _memcpy(_dst: anytype, _src: @TypeOf(_dst), _size: usize) void {
     const info = comptime switch(@typeInfo(@TypeOf(_dst))) {
         .pointer => |p| p,
