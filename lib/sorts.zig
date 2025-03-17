@@ -1,7 +1,4 @@
 const std = @import("std");
-const memcpy = @cImport({
-    @cInclude("string.h");
-}).memcpy;
 
 const Allocator = std.mem.Allocator;
 const RUN = 24;
@@ -77,6 +74,11 @@ fn internal(comptime T: type, arr: [*]T, left: usize, right: usize, comptime cmp
 /// - Super fast
 pub fn quickSort(comptime T: type, arr: []T) void {
     const n = arr.len;
+    if(n < 2) {
+        @branchHint(.unlikely);
+        return;
+    }
+
     const lt = comptime sw: switch(@typeInfo(T)) {
         .@"struct", .@"enum", .@"union" => {
             if(@hasDecl(T, "cmp")) {
@@ -93,8 +95,7 @@ pub fn quickSort(comptime T: type, arr: []T) void {
         }.lt
     };
 
-    if(n > 1) 
-        internal(T, arr.ptr, 0, n - 1, lt);
+    internal(T, arr.ptr, 0, n - 1, lt);
 }
 
 /// Hoare partition with comparator function, O(n ^ 2) worst case, O(n log(n)) otherwise\
@@ -108,8 +109,10 @@ pub fn quickSort(comptime T: type, arr: []T) void {
 pub fn quick_sort_functional(comptime T: type, arr: []T, comptime cmp: fn(T, T) bool) void {
     const n = arr.len;
 
-    if(n > 1)
+    if(n > 1) {
+        @branchHint(.likely);
         internal(T, arr, 0, n - 1, cmp);
+    }
 }
 
 
@@ -174,7 +177,7 @@ pub fn merge_sort_functional(comptime T: type, allocator: Allocator, arr: []T, c
     }
 
     if(inBuffer)
-        _ = memcpy(arr.ptr, buffer.ptr, n);
+        @memcpy(arr.ptr, buffer);
 }
 
 /// TimSort-ish replica, O(n) space. O(n) time best case, O(n log(n)) worst + avg case
@@ -233,7 +236,7 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
     }
 
     if(inBuffer)
-        _ = memcpy(arr.ptr, buffer.ptr, n);
+        @memcpy(arr.ptr, buffer);
 }
 
 
