@@ -19,24 +19,30 @@ pub fn build(b: *std.Build) void {
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
 
-    if (b.args) |args| {
+    if(b.args) |args| {
         run_cmd.addArgs(args);
     }
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    // const pg = b.dependency("pg", .{
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-    // exe.root_module.addImport("pg", pg.module("pg"));
+    const pg = b.dependency("pg", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("pg", pg.module("pg"));
 
-    // const httpz = b.dependency("httpz", .{
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-    // exe.root_module.addImport("httpz", httpz.module("httpz"));
+    const httpz = b.dependency("httpz", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("httpz", httpz.module("httpz"));
+
+    const zul = b.dependency("zul", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("zul", zul.module("zul"));
 
     exe.linkLibC();
 

@@ -12,7 +12,9 @@ pub const PosError = error{ InvalidPos };
 /// Can be used almost interchangeably as a Vector (ArrayList)
 pub fn Stack(comptime T: type) type {
     comptime assert(@sizeOf(T) > 0);
-    const lt = comptime sw: switch(@typeInfo(T)) {
+    const tp = comptime @typeInfo(T);
+
+    const lt = comptime sw: switch(tp) {
         .@"struct", .@"enum", .@"union" => {
             if(@hasDecl(T, "cmp")) {
                 break :sw struct {
@@ -20,7 +22,9 @@ pub fn Stack(comptime T: type) type {
                 }.lt;
             }
             else {
-                continue :sw u8;
+                break :sw struct {
+                    fn lt(a: T, b: T) bool { return a < b; }
+                }.lt;
             }
         },
         else => struct {
