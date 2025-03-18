@@ -87,7 +87,9 @@ pub fn quickSort(comptime T: type, arr: []T) void {
                 }.lt;
             }
             else {
-                continue :sw u8;
+                break :sw struct {
+                    fn lt(a: T, b: T) bool { return a < b; }
+                }.lt;
             }
         },
         else => struct {
@@ -198,7 +200,9 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
                 }.lt;
             }
             else {
-                continue :sw u8;
+                break :sw struct {
+                    fn lt(a: T, b: T) bool { return a < b; }
+                }.lt;
             }
         },
         else => struct {
@@ -272,7 +276,9 @@ pub fn heapSort(comptime T: type, arr: []T) void {
                 }.lt;
             }
             else {
-                continue :sw u8;
+                break :sw struct {
+                    fn lt(a: T, b: T) bool { return a < b; }
+                }.lt;
             }
         },
         else => struct {

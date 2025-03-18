@@ -527,7 +527,7 @@ pub fn Stack(comptime T: type) type {
                 return;
             }
 
-            const mid = (left + right) >> 1;
+            const mid = (left + right) / 2;
             if(comp(array[right], array[left]))
                 _swap(&array[left], &array[right]);
             if(comp(array[mid], array[left]))
@@ -560,8 +560,10 @@ pub fn Stack(comptime T: type) type {
         fn qsort(array: []T, comp: fn(T, T) bool) void {
             const n = array.len;
 
-            if(n > 1)
+            if(n > 1) {
+                @branchHint(.likely);
                 internal(array.ptr, 0, n - 1, comp);
+            }
         }
 
 
@@ -571,24 +573,23 @@ pub fn Stack(comptime T: type) type {
         pub fn format(this: Self, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             try writer.writeAll("[ ");
 
-            for(this.arr(), 0..) |item, i| {
+            for(0..this.len) |i| {
                 if(i > 0)
                     try writer.writeAll(", ");
 
-                const info = @typeInfo(T);
-                switch(info) {
+                switch(@typeInfo(T)) {
                     .pointer => |p| {
                         if(p.size == .slice) {
                             if(p.child == u8 and this.string_representation) {
-                                try writer.print("\"{s}\"", .{ item });
+                                try writer.print("\"{s}\"", .{ this.items[i] });
                             }
                             else {
-                                try writer.print("{any}", .{ item });
+                                try writer.print("{any}", .{ this.items[i] });
                             }
                         }
                     },
-                    .array  => try writer.print("{any}", .{ item }),
-                    else    => try writer.print("{}", .{ item })
+                    .array => try writer.print("{any}", .{ this.items[i] }),
+                    else   => try writer.print("{}", .{ this.items[i] })
                 }
             }
 
