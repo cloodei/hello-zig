@@ -96,7 +96,7 @@ pub fn Stack(comptime T: type) type {
             return this.items[this.len - 1];
         }
 
-        /// Swaps two elements at items[`i`] and items[`j`]
+        /// Swaps two elements at items[`i`] and items[`j`] (can panic/error out for unallowed indicies)
         pub inline fn swap(this: *Self, i: usize, j: usize) void {
             const t = this.items[i];
             this.items[i] = this.items[j];
@@ -221,12 +221,12 @@ pub fn Stack(comptime T: type) type {
             this.len += extend;
         }
 
-        /// Adds another Stack at exactly items[`pos`] (allowed from [0..n]), shifting every element above `pos` to accommodate
+        /// Adds `other` Stack at exactly items[`pos`] (allowed from [0..n]), shifting every element above `pos` to accommodate
         pub fn add(this: *Self, other: Self, pos: usize) !void {
             try this.addArr(other.arr(), pos);
         }
         
-        /// Adds buffer at exactly items[`pos`] (allowed from [0..n]), shifting every element above `pos` to accommodate
+        /// Adds `buffer` at exactly items[`pos`] (allowed from [0..n]), shifting every element above `pos` to accommodate
         pub fn addArr(this: *Self, buffer: []T, pos: usize) !void {
             const extend = buffer.len;
             if(extend == 0) {
@@ -395,7 +395,7 @@ pub fn Stack(comptime T: type) type {
             @memcpy(buffer.ptr, this.arr());
         }
 
-        /// Copy current Stack into other Stack
+        /// Copy current Stack into `other` Stack
         pub fn copyInto(this: Self, other: *Self) void {
             if(other.capacity() < this.len) {
                 @branchHint(.unlikely);
@@ -422,7 +422,7 @@ pub fn Stack(comptime T: type) type {
             return buffer;
         }
 
-        /// Take complete ownership of other Stack's memory, rendering it undefined (completely O(1), does not copy)
+        /// Take complete ownership of `other` Stack's memory, rendering it undefined (completely O(1), does not copy)
         /// 
         /// other Stack's pointer cannot access its now-moved memory (becomes 0-slice). Current Stack is freed
         pub fn take(this: *Self, other: *Self) void {
@@ -479,7 +479,7 @@ pub fn Stack(comptime T: type) type {
         }
         
 
-        /// Sorts entire Stack with comparator function\
+        /// Sorts entire Stack with `comp` comparator function\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
@@ -500,7 +500,7 @@ pub fn Stack(comptime T: type) type {
             return buffer;
         }
 
-        /// Return a new allocated copy of the Stack, sorted according to comparator\
+        /// Return a new allocated copy of the Stack, sorted according to `comp` comparator function\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\

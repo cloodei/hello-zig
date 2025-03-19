@@ -29,8 +29,7 @@ pub const App = struct {
     /// "global state" data, which is the database Pool
     db: *pg.Pool,
 
-    /// Handler's dispatch, log out timings of each request
-    /// in microseconds, time to process and handle the request
+    /// Handler's dispatch, log out timers to process and handle the request
     pub fn dispatch(app: *App, action: httpz.Action(*App), req: *httpz.Request, res: *httpz.Response) !void {
         var timer = try std.time.Timer.start();
         try action(app, req, res);

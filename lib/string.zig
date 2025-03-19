@@ -77,7 +77,7 @@ pub inline fn empty(this: Self) bool {
 }
 
 
-/// Push `str` to the end of current String
+/// Push `string` to the end of current String
 pub fn concat(this: *Self, string: Self) Error!void {
     if(string.len == 0) {
         @branchHint(.cold);
@@ -94,7 +94,7 @@ pub fn concat_str(this: *Self, str: []const u8) Error!void {
     @memcpy(this.buffer.ptr + n, str);
 }
 
-/// Return a newly allocated, concatenated string between `this` (current String) and `str`
+/// Return a newly allocated, concatenated string between current String and `str`
 pub fn to_concat(this: Self, str: Self) Error!Self {
     var res = try init_copy(this);
     res.concat(str);
@@ -102,7 +102,7 @@ pub fn to_concat(this: Self, str: Self) Error!Self {
     return res;
 }
 
-/// Return a newly allocated, concatenated string between `this` (current String) and `str`
+/// Return a newly allocated, concatenated string between current String and `str`
 pub fn to_concat_str(this: Self, str: []const u8) Error!Self {
     var res = try init_copy(this);
     res.concat_str(str);
@@ -121,7 +121,7 @@ pub fn insert(this: *Self, str: Self, pos: usize) Error!void {
     try this.insert_str(str.buffer[0..n], pos);
 }
 
-/// Insert `str` at exactly `pos` index in the String
+/// Insert `str` string literal at exactly `pos` index in the String
 pub fn insert_str(this: *Self, str: []const u8, pos: usize) Error!void {
     const n = this.len;
     if(pos > n)
@@ -338,13 +338,13 @@ pub fn split(this: Self, delimiter: []const u8) Error!Stack(Self) {
         if(checkPos) |pos| {
             var part = try Self.init(this.allocator);
             try part.concat_str(this.buffer[start..pos]);
-            try result.push(part);
+            result.push(part);
             start = pos + m;
         }
         else {
             var part = try Self.init(this.allocator);
             try part.concat_str(this.buffer[start..n]);
-            try result.push(part);
+            result.push(part);
             break;
         }
     }
