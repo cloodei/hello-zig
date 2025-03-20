@@ -87,8 +87,6 @@ fn fetchDatas(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
         vec.push(user);
     }
 
-    std.debug.print("\n{}\n", .{ vec });
-
     try res.json(vec.arr(), .{});
 }
 

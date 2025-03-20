@@ -12,9 +12,9 @@ pub const PosError = error{ InvalidPos };
 /// Can be used almost interchangeably as a Vector (ArrayList)
 pub fn Stack(comptime T: type) type {
     comptime assert(@sizeOf(T) > 0);
-    const tp = comptime @typeInfo(T);
+    const info = comptime @typeInfo(T);
 
-    const lt = comptime sw: switch(tp) {
+    const lt = comptime sw: switch(info) {
         .@"struct", .@"enum", .@"union" => {
             if(@hasDecl(T, "cmp")) {
                 break :sw struct {
@@ -135,12 +135,12 @@ pub fn Stack(comptime T: type) type {
         /// Adds `elem` to top of Stack, increments length, amortized O(1) time
         /// 
         /// Resizes in-place if possible, else copy resize on overflow
-        pub fn push(this: *Self, elem: T) void {
+        pub fn push(this: *Self, elem: T) !void {
             const len = this.len;
             if(this.capacity() == len) {
                 const newCap: usize = len * 2;
                 if(!this.allocator.resize(this.items, newCap)) {
-                    const mem = this.allocator.alloc(T, newCap) catch @panic("Can't resize Stack!");
+                    const mem = try this.allocator.alloc(T, newCap);
                     @memcpy(mem.ptr, this.arr());
 
                     this.deinit();
@@ -149,6 +149,22 @@ pub fn Stack(comptime T: type) type {
             }
 
             this.pushAssumeCap(elem);
+        }
+
+        /// Returns a new allocated Stack as copy of current Stack, with the appended `elem` on top
+        pub fn toPush(this: Self, elem: T) !Self {
+            const n = this.len;
+            const mem = try this.allocator.alloc(T, n + 1);
+            @memcpy(mem.ptr, this.items[0..n]);
+            mem[n] = elem;
+
+            const res = Self {
+                .allocator = this.allocator,
+                .items = mem,
+                .len = n,
+                .string_representation = this.string_representation,
+            };
+            return res;
         }
 
         /// Adds `elem` exactly at items[`pos`] (inclusively, `pos` allowed from [0..n])\
@@ -265,20 +281,31 @@ pub fn Stack(comptime T: type) type {
         }
 
 
-        /// Removes top element from Stack and returns it, decrement length, O(1) time
-        pub inline fn pop_safe(this: *Self) ?T {
+        /// Removes top element from Stack and returns it, decrement length, O(1) time (no safeguards!! can panic and error out)
+        pub inline fn popAssumeCap(this: *Self) T {
+            this.len -= 1;
+            return this.items[this.len];
+        }
+
+        /// Removes top element from Stack and returns it (null if empty), decrement length, O(1) time
+        pub inline fn pop(this: *Self) ?T {
             if(this.len == 0) {
                 @branchHint(.unlikely);
                 return null;
             }
 
-            return this.pop();
+            return this.popAssumeCap();
         }
 
-        /// Removes top element from Stack and returns it, decrement length, O(1) time (no safeguards!! can panic and error out)
-        pub inline fn pop(this: *Self) T {
-            this.len -= 1;
-            return this.items[this.len];
+        /// Returns a new allocated copy of current Stack, popped of the last element
+        pub fn toPop(this: Self) !Self {
+            var res = this.copy();
+            if(res.len != 0) {
+                @branchHint(.likely);
+                res.len -= 1;
+            }
+
+            return res;
         }
 
         /// Removes first element (bottom of Stack) from Stack and returns it, decrement length. Shifts entire Stack down, O(n) time
@@ -577,7 +604,7 @@ pub fn Stack(comptime T: type) type {
                 if(i > 0)
                     try writer.writeAll(", ");
 
-                switch(@typeInfo(T)) {
+                switch(info) {
                     .pointer => |p| {
                         if(p.size == .slice) {
                             if(p.child == u8 and this.string_representation) {

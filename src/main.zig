@@ -30,15 +30,15 @@ pub fn main() !void {
     var vec2 = Stack(u8).initAllocator(allocator);
     defer vec2.deinit();
 
-    vec.push("the phone rings");
-    vec.push("...");
-    vec.push("but nobody came");
-
-    vec2.push(32);
-    vec2.push(31);
-    vec2.push(232);
-    vec2.push(132);
-    vec2.push(99);
+    try vec.push("the phone rings");
+    try vec.push("...");
+    try vec.push("but nobody came");
+    
+    try vec2.push(32);
+    try vec2.push(31);
+    try vec2.push(232);
+    try vec2.push(132);
+    try vec2.push(99);
 
     std.debug.print("{}\n", .{ vec });
     std.debug.print("{}\n", .{ vec2 });
