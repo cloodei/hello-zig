@@ -147,9 +147,9 @@ pub fn run_all_search(comptime use_dba: bool) !void {
 }
 
 pub fn run_all_search_simul(comptime use_dba: bool) !void {
-    const t1 = try std.Thread.spawn(.{}, run_DFS_bench, .{use_dba});
-    const t2 = try std.Thread.spawn(.{}, run_BFS_bench, .{use_dba});
-    const t3 = try std.Thread.spawn(.{}, run_HCS_bench, .{use_dba});
+    const t1 = try std.Thread.spawn(.{}, run_DFS_bench, .{ use_dba });
+    const t2 = try std.Thread.spawn(.{}, run_BFS_bench, .{ use_dba });
+    const t3 = try std.Thread.spawn(.{}, run_HCS_bench, .{ use_dba });
 
     t1.join();
     t2.join();
@@ -190,7 +190,7 @@ pub fn runCheckSS(allocator: Allocator, timer: *Timer) ![]i32 {
 
 pub fn runQS(allocator: Allocator, timer: *Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
-    defer random.free_rand_arr(i32, allocator, arr);
+    defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
     sorts.quickSort(i32, arr);
@@ -198,7 +198,7 @@ pub fn runQS(allocator: Allocator, timer: *Timer) !void {
 
 pub fn runHS(allocator: Allocator, timer: *Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
-    defer random.free_rand_arr(i32, allocator, arr);
+    defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
     sorts.heapSort(i32, arr);
@@ -206,7 +206,7 @@ pub fn runHS(allocator: Allocator, timer: *Timer) !void {
 
 pub fn runMS(allocator: Allocator, timer: *Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
-    defer random.free_rand_arr(i32, allocator, arr);
+    defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
     sorts.mergeSort(i32, arr);
@@ -214,7 +214,7 @@ pub fn runMS(allocator: Allocator, timer: *Timer) !void {
 
 pub fn runSS(allocator: Allocator, timer: *Timer) !void {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
-    defer random.free_rand_arr(i32, allocator, arr);
+    defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
     std.mem.sort(i32, arr, {}, std.sort.asc(i32));
@@ -238,7 +238,7 @@ pub fn run_stdsort_bench(comptime use_dba: bool) !void {
 }
 
 pub fn checkSorted(array: []i32) !void {
-    std.debug.print("Sorted: {}\n", .{utils.is_sorted(i32, array)});
+    std.debug.print("Sorted: {}\n", .{ utils.is_sorted(i32, array) });
 }
 
 pub fn run_mergesort_bench_with_check(comptime use_dba: bool) !void {
@@ -273,10 +273,10 @@ pub fn run_all_sorts_bench_with_check(comptime use_dba: bool) !void {
 }
 
 pub fn run_all_sorts_bench_simul(comptime use_dba: bool) !void {
-    var t1 = try std.Thread.spawn(.{}, run_mergesort_bench, .{use_dba});
-    var t2 = try std.Thread.spawn(.{}, run_quicksort_bench, .{use_dba});
-    var t3 = try std.Thread.spawn(.{}, run_heapsort_bench, .{use_dba});
-    var t4 = try std.Thread.spawn(.{}, run_stdsort_bench, .{use_dba});
+    var t1 = try std.Thread.spawn(.{}, run_mergesort_bench, .{ use_dba });
+    var t2 = try std.Thread.spawn(.{}, run_quicksort_bench, .{ use_dba });
+    var t3 = try std.Thread.spawn(.{}, run_heapsort_bench, .{ use_dba });
+    var t4 = try std.Thread.spawn(.{}, run_stdsort_bench, .{ use_dba });
 
     t1.join();
     t2.join();
@@ -285,10 +285,10 @@ pub fn run_all_sorts_bench_simul(comptime use_dba: bool) !void {
 }
 
 pub fn run_all_sorts_bench_with_check_simul(comptime use_dba: bool) !void {
-    var t1 = try std.Thread.spawn(.{}, run_mergesort_bench_with_check, .{use_dba});
-    var t2 = try std.Thread.spawn(.{}, run_quicksort_bench_with_check, .{use_dba});
-    var t4 = try std.Thread.spawn(.{}, run_heapsort_bench_with_check, .{use_dba});
-    var t3 = try std.Thread.spawn(.{}, run_stdsort_bench_with_check, .{use_dba});
+    var t1 = try std.Thread.spawn(.{}, run_mergesort_bench_with_check, .{ use_dba });
+    var t2 = try std.Thread.spawn(.{}, run_quicksort_bench_with_check, .{ use_dba });
+    var t4 = try std.Thread.spawn(.{}, run_heapsort_bench_with_check, .{ use_dba });
+    var t3 = try std.Thread.spawn(.{}, run_stdsort_bench_with_check, .{ use_dba });
 
     t1.join();
     t2.join();

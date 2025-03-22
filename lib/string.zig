@@ -13,7 +13,7 @@ len: usize,
 
 /// Initialize an empty String with `allocator`
 pub inline fn init(allocator: Allocator) Error!Self {
-    return Self{
+    return Self {
         .allocator = allocator,
         .buffer = try allocator.alloc(u8, 16),
         .len = 0,
@@ -26,7 +26,7 @@ pub fn init_copy(str: Self) Error!Self {
     const mem = try str.allocator.alloc(u8, n);
     @memcpy(mem.ptr, str.buffer[0..n]);
 
-    return Self{
+    return Self {
         .allocator = str.allocator,
         .buffer = mem,
         .len = n,
@@ -39,7 +39,7 @@ pub fn init_copy_str(str: []const u8) Error!Self {
     const mem = try allocator.alloc(u8, str.len);
     @memcpy(mem.ptr, str);
 
-    return Self{
+    return Self {
         .allocator = allocator,
         .buffer = mem,
         .len = str.len,
@@ -48,7 +48,7 @@ pub fn init_copy_str(str: []const u8) Error!Self {
 
 /// Does not allocate, instead takes from a string literal (Do not deinit()!! unless a new string was pushed, or resize was caused)
 pub fn init_contents(str: []const u8) Error!Self {
-    return Self{
+    return Self {
         .allocator = std.heap.smp_allocator,
         .buffer = @constCast(str),
         .len = str.len,
@@ -224,8 +224,8 @@ pub fn to_trim(this: Self) !Self {
 
 /// Trim all whitespace characters (" ") at both ends of the String
 pub fn trim(this: *Self) void {
-    this.trim_left();
     this.trim_right();
+    this.trim_left();
 }
 
 /// Trim all whitespace (" ") character at the start of the String
@@ -306,18 +306,19 @@ pub fn find_str(this: Self, substr: []const u8) ?usize {
 
 /// Return a new string with all occurrences of `from` replaced with `to`
 pub fn replace(this: Self, from: []const u8, to: []const u8) Error!Self {
+    const n = this.len;
     var result = try Self.init(this.allocator);
     var start: usize = 0;
 
-    while(start < this.len) {
-        const maybe_pos = std.mem.indexOfPos(u8, this.slice(), start, from);
-        if(maybe_pos) |pos| {
+    while(start < n) {
+        const checkPos = std.mem.indexOfPos(u8, this.buffer[0..n], start, from);
+        if(checkPos) |pos| {
             try result.concat_str(this.buffer[start..pos]);
             try result.concat_str(to);
             start = pos + from.len;
         }
         else {
-            try result.concat_str(this.buffer[start..this.len]);
+            try result.concat_str(this.buffer[start..n]);
             break;
         }
     }
@@ -334,7 +335,7 @@ pub fn split(this: Self, delimiter: []const u8) Error!Stack(Self) {
     var start: usize = 0;
 
     while(start < n) {
-        const checkPos = std.mem.indexOfPos(u8, this.slice(), start, delimiter);
+        const checkPos = std.mem.indexOfPos(u8, this.buffer[0..n], start, delimiter);
         if(checkPos) |pos| {
             var part = try Self.init(this.allocator);
             try part.concat_str(this.buffer[start..pos]);

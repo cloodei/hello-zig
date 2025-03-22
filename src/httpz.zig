@@ -25,8 +25,7 @@ inline fn formatTime(num: *f64) u8 {
 pub const App = struct {
     allocator: std.mem.Allocator,
 
-    /// Every route will have access with the Handler's\
-    /// "global state" data, which is the database Pool
+    /// Every route will have access with the Handler's "global state" data, which is the database Pool
     db: *pg.Pool,
 
     /// Handler's dispatch, log out timers to process and handle the request
