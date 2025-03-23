@@ -275,8 +275,8 @@ pub fn run_all_sorts_bench_with_check(comptime use_dba: bool) !void {
 pub fn run_all_sorts_bench_simul(comptime use_dba: bool) !void {
     var t1 = try std.Thread.spawn(.{}, run_mergesort_bench, .{ use_dba });
     var t2 = try std.Thread.spawn(.{}, run_quicksort_bench, .{ use_dba });
-    var t3 = try std.Thread.spawn(.{}, run_heapsort_bench, .{ use_dba });
-    var t4 = try std.Thread.spawn(.{}, run_stdsort_bench, .{ use_dba });
+    var t3 = try std.Thread.spawn(.{}, run_heapsort_bench,  .{ use_dba });
+    var t4 = try std.Thread.spawn(.{}, run_stdsort_bench,   .{ use_dba });
 
     t1.join();
     t2.join();
@@ -287,8 +287,8 @@ pub fn run_all_sorts_bench_simul(comptime use_dba: bool) !void {
 pub fn run_all_sorts_bench_with_check_simul(comptime use_dba: bool) !void {
     var t1 = try std.Thread.spawn(.{}, run_mergesort_bench_with_check, .{ use_dba });
     var t2 = try std.Thread.spawn(.{}, run_quicksort_bench_with_check, .{ use_dba });
-    var t4 = try std.Thread.spawn(.{}, run_heapsort_bench_with_check, .{ use_dba });
-    var t3 = try std.Thread.spawn(.{}, run_stdsort_bench_with_check, .{ use_dba });
+    var t4 = try std.Thread.spawn(.{}, run_heapsort_bench_with_check,  .{ use_dba });
+    var t3 = try std.Thread.spawn(.{}, run_stdsort_bench_with_check,   .{ use_dba });
 
     t1.join();
     t2.join();

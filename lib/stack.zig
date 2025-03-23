@@ -96,7 +96,7 @@ pub fn Stack(comptime T: type) type {
             return this.items[this.len - 1];
         }
 
-        /// Swaps two elements at items[`i`] and items[`j`] (can panic/error out for unallowed indicies)
+        /// Swaps two elements at items[`i`] and items[`j`] (will panic/error out for unallowed indicies)
         pub inline fn swap(this: *Self, i: usize, j: usize) void {
             const t = this.items[i];
             this.items[i] = this.items[j];
@@ -158,13 +158,12 @@ pub fn Stack(comptime T: type) type {
             @memcpy(mem.ptr, this.items[0..n]);
             mem[n] = elem;
 
-            const res = Self {
+            return Self {
                 .allocator = this.allocator,
                 .items = mem,
                 .len = n,
                 .string_representation = this.string_representation,
             };
-            return res;
         }
 
         /// Adds `elem` exactly at items[`pos`] (inclusively, `pos` allowed from [0..n])\
@@ -374,13 +373,9 @@ pub fn Stack(comptime T: type) type {
 
         /// Return the amount of `target` currently in the Stack
         pub fn count(this: Self, target: T) usize {
-            var res: usize = 0;
-
-            for(this.arr()) |thing| {
-                if(thing == target)
-                    res += 1;
-            }
-            return res;
+            return this.countSpec(target, comptime struct {
+                fn eq(a: T, b: T) bool { return a == b; }
+            }.eq);
         }
 
         /// Return the amount of `target` currently in the Stack, using `check` between Stack elements and target
@@ -424,11 +419,6 @@ pub fn Stack(comptime T: type) type {
 
         /// Copy current Stack into `other` Stack
         pub fn copyInto(this: Self, other: *Self) void {
-            if(other.capacity() < this.len) {
-                @branchHint(.unlikely);
-                return;
-            }
-
             this.copyIntoArr(other.items);
             other.len = this.len;
         }
@@ -504,7 +494,6 @@ pub fn Stack(comptime T: type) type {
 
             return res;
         }
-        
 
         /// Sorts entire Stack with `comp` comparator function\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
