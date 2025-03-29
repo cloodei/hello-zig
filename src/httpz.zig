@@ -55,14 +55,14 @@ pub const App = struct {
     }
 };
 
-const Data = struct {
+pub const Data = struct {
     id: i32,
     name: []const u8,
     flags: i64,
     sys: i16
 };
 
-const Nicety = struct {
+pub const Nicety = struct {
     id: i32,
     datas_id: i64,
     mem: i64,
@@ -82,9 +82,8 @@ fn fetchDatas(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
     var thing = try app.db.queryOpts("SELECT * FROM items.datas", .{}, .{ .column_names = true });
     var mapper = thing.mapper(Data, .{});
 
-    while(try mapper.next()) |user| {
+    while(try mapper.next()) |user|
         vec.push(user);
-    }
 
     try res.json(vec.arr(), .{});
 }

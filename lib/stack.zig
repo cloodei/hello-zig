@@ -161,7 +161,7 @@ pub fn Stack(comptime T: type) type {
             return Self {
                 .allocator = this.allocator,
                 .items = mem,
-                .len = n,
+                .len = n + 1,
                 .string_representation = this.string_representation,
             };
         }
