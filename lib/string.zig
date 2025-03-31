@@ -215,7 +215,7 @@ pub fn remove_str(this: *Self, substr: []const u8) void {
 }
 
 /// Return a newly allocated, trimmed of all whitespace characters (" ") String from current String
-pub fn to_trim(this: Self) !Self {
+pub fn to_trim(this: Self) Error!Self {
     var res = try init_copy(this);
     res.trim();
 
@@ -432,6 +432,50 @@ pub fn count_str(this: Self, substr: []const u8) usize {
     }
 
     return cnt;
+}
+
+
+/// Convert string to integer, return null if invalid format
+pub fn str_parse_int(str: []const u8) ?i128 {
+    const n = str.len;
+    if(n == 0)
+        return null;
+
+    var acc: i128 = 0;
+    var start: usize = 0;
+    const negative = str[0] == '-';
+    if(negative) {
+        if(n == 1)
+            return null;
+
+        start = 1;
+    }
+
+    while(start + 4 <= n) : (start += 4) {
+        const d1 = str[start] -% '0';
+        const d2 = str[start + 1] -% '0';
+        const d3 = str[start + 2] -% '0';
+        const d4 = str[start + 3] -% '0';
+
+        if(d1 > 9 or d2 > 9 or d3 > 9 or d4 > 9)
+            return null;
+
+        acc = acc *% 10000 +% d1 *% 1000 +% d2 *% 100 +% d3 *% 10 +% d4;
+    }
+
+    while(start < n) : (start += 1) {
+        const digit = str[start] -% '0';
+        if(digit > 9)
+            return null;
+        acc = acc *% 10 +% digit;
+    }
+
+    return if(negative) -acc else acc;
+}
+
+/// Convert string to integer, return null if invalid format
+pub fn parse_int(str: Self) ?i128 {
+    return str_parse_int(str.slice());
 }
 
 
