@@ -441,7 +441,6 @@ pub fn str_parse_int(str: []const u8) ?i128 {
     if(n == 0)
         return null;
 
-    var acc: i128 = 0;
     var start: usize = 0;
     const negative = str[0] == '-';
     if(negative) {
@@ -451,19 +450,8 @@ pub fn str_parse_int(str: []const u8) ?i128 {
         start = 1;
     }
 
-    while(start + 4 <= n) : (start += 4) {
-        const d1 = str[start] -% '0';
-        const d2 = str[start + 1] -% '0';
-        const d3 = str[start + 2] -% '0';
-        const d4 = str[start + 3] -% '0';
-
-        if(d1 > 9 or d2 > 9 or d3 > 9 or d4 > 9)
-            return null;
-
-        acc = acc *% 10000 +% d1 *% 1000 +% d2 *% 100 +% d3 *% 10 +% d4;
-    }
-
-    while(start < n) : (start += 1) {
+    var acc: i128 = 0;
+    while(start != n) : (start += 1) {
         const digit = str[start] -% '0';
         if(digit > 9)
             return null;
