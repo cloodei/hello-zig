@@ -12,46 +12,50 @@ const time = std.time;
 const SIZE = 10_485_760; // 10 MB x 4
 
 fn check(dst: anytype, src: anytype) bool {
-    for(0..src.len) |i|
-        if(src[i] != dst[i])
+    for (0..src.len) |i|
+        if (src[i] != dst[i])
             return false;
 
     return true;
 }
-
 
 pub fn main() !void {
     var dba = std.heap.DebugAllocator(.{}).init;
     defer _ = dba.deinit();
     const allocator = dba.allocator();
 
-    const thing = try allocator.alloc(u8, 32);
+    const thing = try allocator.alloc(u8, 4096);
     defer allocator.free(thing);
 
-    // const cwd = std.fs.cwd();
-    // const stuff = try cwd.readFile("src/data.json", thing);
-    // // const some = try std.json.parseFromSlice(struct {}, allocator, stuff, .{});
-    // std.debug.print("{s}\n{d}", .{ stuff, stuff.len });
+    var t = try String.read_int_endl(usize, thing);
+    var vec = Stack(i32).init(allocator, 100);
+    defer vec.deinit();
 
-    const stdin = std.io.getStdIn().reader();
-    const some = (try stdin.readUntilDelimiter(thing, '\r'));
+    while(t != 0) : (t -= 1) {
+        const n = try String.read_int_endl(usize, thing) - 1;
+        for(0..n) |_| {
+            vec.pushAssumeCap(try String.read_int(i32, thing));
+        }
+        vec.pushAssumeCap(try String.read_int_endl(i32, thing));
+        vec.sort();
+        std.debug.print("{}\n", .{ vec.items[vec.len - 2] - vec.items[0] });
+        vec.len = 0;
+    }
 
-    var start = time.nanoTimestamp();
-    const stdp = try std.fmt.parseInt(i128, some, 10);
-    var end = time.nanoTimestamp();
-    const stdTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
-    
+    // var start = time.nanoTimestamp();
+    // const stdp = try std.fmt.parseInt(i128, some, 10);
+    // var end = time.nanoTimestamp();
+    // const stdTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
 
-    start = time.nanoTimestamp();
-    const cusp = String.str_parse_int(some).?;
-    end = time.nanoTimestamp();
-    const cusTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
+    // start = time.nanoTimestamp();
+    // const cusp = String.str_parse_int(some).?;
+    // end = time.nanoTimestamp();
+    // const cusTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
 
-    std.debug.print("STD: {d} | {d} us\nCUS: {d} | {d} us", .{
-        stdp, stdTime,
-        cusp, cusTime
-    });
-
+    // std.debug.print("STD: {d} | {d} us\nCUS: {d} | {d} us", .{
+    //     stdp, stdTime,
+    //     cusp, cusTime
+    // });
 
     // var vec = Stack([]const u8).initAllocator(allocator);
     // defer vec.deinit();
@@ -61,7 +65,7 @@ pub fn main() !void {
     // try vec.push("the phone rings");
     // try vec.push("...");
     // try vec.push("but nobody came");
-    
+
     // try vec2.push(32);
     // try vec2.push(31);
     // try vec2.push(232);

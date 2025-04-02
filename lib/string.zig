@@ -466,6 +466,19 @@ pub fn parse_int(str: Self) ?i128 {
     return str_parse_int(str.slice());
 }
 
+/// Read and parse an integer value from stdin until endl character, needs a temp buffer to store input
+pub fn read_int_endl(comptime retType: type, buffer: []u8) !retType {
+    const stdin = std.io.getStdIn().reader();
+    const read = try stdin.readUntilDelimiter(buffer, '\n');
+    return @as(retType, @intCast(str_parse_int(read[0..read.len - 1]).?));
+}
+
+/// Read and parse an integer value from stdin until space character, needs a temp buffer to store input
+pub fn read_int(comptime retType: type, buffer: []u8) !retType {
+    const stdin = std.io.getStdIn().reader();
+    return @as(retType, @intCast(str_parse_int(try stdin.readUntilDelimiter(buffer, ' ')).?));
+}
+
 
 /// Expose a formatter for the String type, printing at the format "`buffer[0..n]`"
 pub fn format(this: Self, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
