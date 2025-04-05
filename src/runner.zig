@@ -156,8 +156,9 @@ pub fn run_all_search_simul(comptime use_dba: bool) !void {
     t3.join();
 }
 
+
 pub fn runCheckMS(allocator: Allocator, timer: *Timer) ![]i32 {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, -65_536, 4_194_304);
 
     timer.reset();
     sorts.mergeSort(i32, arr);
@@ -165,7 +166,7 @@ pub fn runCheckMS(allocator: Allocator, timer: *Timer) ![]i32 {
 }
 
 pub fn runCheckHS(allocator: Allocator, timer: *Timer) ![]i32 {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, -65_536, 4_194_304);
 
     timer.reset();
     sorts.heapSort(i32, arr);
@@ -173,7 +174,7 @@ pub fn runCheckHS(allocator: Allocator, timer: *Timer) ![]i32 {
 }
 
 pub fn runCheckQS(allocator: Allocator, timer: *Timer) ![]i32 {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, -65_536, 4_194_304);
 
     timer.reset();
     sorts.quickSort(i32, arr);
@@ -181,15 +182,31 @@ pub fn runCheckQS(allocator: Allocator, timer: *Timer) ![]i32 {
 }
 
 pub fn runCheckSS(allocator: Allocator, timer: *Timer) ![]i32 {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, -65_536, 4_194_304);
 
     timer.reset();
     std.mem.sort(i32, arr, {}, std.sort.asc(i32));
     return arr;
 }
 
+pub fn runCheckRS(allocator: Allocator, timer: *Timer) ![]i32 {
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 16_000_000);
+
+    timer.reset();
+    try sorts.radixSort2(i32, arr, allocator);
+    return arr;
+}
+
+pub fn runCheckRS2(allocator: Allocator, timer: *Timer) ![]u32 {
+    const arr = random.rand_int_arr_in_range(u32, allocator, 1_000_000, 0, 16_000_000);
+
+    timer.reset();
+    try sorts.radixSort(u32, arr, allocator);
+    return arr;
+}
+
 pub fn runQS(allocator: Allocator, timer: *Timer) !void {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, -65_536, 4_194_304);
     defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
@@ -197,7 +214,7 @@ pub fn runQS(allocator: Allocator, timer: *Timer) !void {
 }
 
 pub fn runHS(allocator: Allocator, timer: *Timer) !void {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, -65_536, 4_194_304);
     defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
@@ -205,7 +222,7 @@ pub fn runHS(allocator: Allocator, timer: *Timer) !void {
 }
 
 pub fn runMS(allocator: Allocator, timer: *Timer) !void {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, -65_536, 4_194_304);
     defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
@@ -213,11 +230,27 @@ pub fn runMS(allocator: Allocator, timer: *Timer) !void {
 }
 
 pub fn runSS(allocator: Allocator, timer: *Timer) !void {
-    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 4_194_304);
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, -65_536, 4_194_304);
     defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
     std.mem.sort(i32, arr, {}, std.sort.asc(i32));
+}
+
+pub fn runRS(allocator: Allocator, timer: *Timer) !void {
+    const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 16_000_000);
+    defer random.free_rand_arr(allocator, arr);
+
+    timer.reset();
+    try sorts.radixSort2(i32, arr, allocator);
+}
+
+pub fn runRS2(allocator: Allocator, timer: *Timer) !void {
+    const arr = random.rand_int_arr_in_range(u32, allocator, 1_000_000, 0, 16_000_000);
+    defer random.free_rand_arr(allocator, arr);
+
+    timer.reset();
+    try sorts.radixSort(u32, arr, allocator);
 }
 
 pub fn run_mergesort_bench(comptime use_dba: bool) !void {
@@ -236,9 +269,20 @@ pub fn run_stdsort_bench(comptime use_dba: bool) !void {
     var x = try benchmark.run(runSS, use_dba);
     x.print("STD Sort");
 }
+pub fn run_radsort_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runRS, use_dba);
+    x.print("Radix Sort");
+}
+pub fn run_radsort2_bench(comptime use_dba: bool) !void {
+    var x = try benchmark.run(runRS2, use_dba);
+    x.print("Radix Sort 2");
+}
 
 pub fn checkSorted(array: []i32) !void {
     std.debug.print("Sorted: {}\n", .{ utils.is_sorted(i32, array) });
+}
+pub fn checkSortedSpec(array: []u32) !void {
+    std.debug.print("Sorted: {}\n", .{ utils.is_sorted(u32, array) });
 }
 
 pub fn run_mergesort_bench_with_check(comptime use_dba: bool) !void {
@@ -257,8 +301,18 @@ pub fn run_stdsort_bench_with_check(comptime use_dba: bool) !void {
     var x = try benchmark.runWithReturn([]i32, runCheckSS, checkSorted, use_dba);
     x.print("STD Sort");
 }
+pub fn run_radsort_bench_with_check(comptime use_dba: bool) !void {
+    var x = try benchmark.runWithReturn([]i32, runCheckRS, checkSorted, use_dba);
+    x.print("Radix Sort");
+}
+pub fn run_radsort2_bench_with_check(comptime use_dba: bool) !void {
+    var x = try benchmark.runWithReturn([]u32, runCheckRS2, checkSortedSpec, use_dba);
+    x.print("Radix Sort 2");
+}
 
 pub fn run_all_sorts_bench(comptime use_dba: bool) !void {
+    try run_radsort_bench(use_dba);
+    try run_radsort2_bench(use_dba);
     try run_mergesort_bench(use_dba);
     try run_quicksort_bench(use_dba);
     try run_stdsort_bench(use_dba);
@@ -266,6 +320,8 @@ pub fn run_all_sorts_bench(comptime use_dba: bool) !void {
 }
 
 pub fn run_all_sorts_bench_with_check(comptime use_dba: bool) !void {
+    try run_radsort_bench_with_check(use_dba);
+    try run_radsort2_bench_with_check(use_dba);
     try run_mergesort_bench_with_check(use_dba);
     try run_quicksort_bench_with_check(use_dba);
     try run_stdsort_bench_with_check(use_dba);

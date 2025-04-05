@@ -486,7 +486,7 @@ pub fn Stack(comptime T: type) type {
             return buffer;
         }
 
-        /// Return a new allocated copy of the Stack, sorted in ascending order\
+        /// Return a new allocated array copy of current Stack, sorted in ascending order\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
         pub fn toSortedArr(this: Self) ![]T {
             const res = try this.arrCopy();
@@ -516,7 +516,7 @@ pub fn Stack(comptime T: type) type {
             return buffer;
         }
 
-        /// Return a new allocated copy of the Stack, sorted according to `comp` comparator function\
+        /// Return a new allocated array copy of current Stack, sorted according to `comp` comparator function\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
@@ -528,6 +528,30 @@ pub fn Stack(comptime T: type) type {
             return buffer;
         }
 
+        /// Sorts entire Stack in ascending order\
+        /// Internally uses LSD RadixSort, ~O(256n) time, O(n) space. Fastest possible sort for purely integer Stack
+        pub fn sortInt(this: *Self) !void {
+            try radixSort(this.items, this.allocator);
+        }
+
+        /// Return a new Stack as an allocated copy of current Stack, sorted in ascending order\
+        /// Internally uses LSD RadixSort, ~O(256n) time, O(n) space. Fastest possible sort for purely integer Stack
+        pub fn toSortedInt(this: Self) Self {
+            var buffer = this.copy();
+            try buffer.sortInt();
+
+            return buffer;
+        }
+
+        /// Return a new allocated array copy of current Stack, sorted in ascending order\
+        /// Internally uses LSD RadixSort, ~O(256n) time, O(n) space. Fastest possible sort for purely integer Stack
+        pub fn toSortedArrInt(this: Self) ![]T {
+            const res = try this.arrCopy();
+            try radixSort(res, this.allocator);
+
+            return res;
+        }
+        
 
         fn internal(array: [*]T, left: usize, right: usize, comp: fn(a: T, b: T) bool) void {
             if(right - left < 24) {
@@ -580,6 +604,69 @@ pub fn Stack(comptime T: type) type {
                 @branchHint(.likely);
                 internal(array.ptr, 0, n - 1, comp);
             }
+        }
+                
+        fn radixSort(slice: []T, allocator: std.mem.Allocator) !void {
+            const n = slice.len;
+            if(n < 2)
+                return;
+
+            const UT = comptime sw: switch(info) {
+                .int => |_| {
+                    var some = info;
+                    some.int.signedness = .unsigned;
+                    break :sw @Type(some);
+                },
+                else => {
+                    return error{ InvalidType };
+                }
+            };
+            const BitWidth = @bitSizeOf(T);
+            const num_passes = comptime (BitWidth + 8 - 1) / 8;
+            const sign_flip_mask: UT = comptime (@as(UT, 1) << (BitWidth - 1));
+
+            const buffer = try allocator.alloc(T, n);
+            defer allocator.free(buffer);
+
+            var current_slice = slice.ptr;
+            var other_slice = buffer.ptr;
+
+            var counts: [256]usize = undefined;
+            var pass: usize = 0;
+            while(pass < num_passes) : (pass += 1) {
+                @memset(&counts, 0);
+                const _shift: u6 = @intCast(pass * 8);
+                var i: usize = 0;
+                while(i < n) : (i += 1) {
+                    const u_val = @as(UT, @bitCast(current_slice[i])) ^ sign_flip_mask;
+                    const bucket_index: usize = @intCast((@as(usize, u_val) >> _shift) & 255);
+                    counts[bucket_index] += 1;
+                }
+
+                var prefix_sum: usize = 0;
+                i = 0;
+                while(i < 256) : (i += 1) {
+                    const _count = counts[i];
+                    counts[i] = prefix_sum;
+                    prefix_sum += _count;
+                }
+
+                i = 0;
+                while(i < n) : (i += 1) {
+                    const item = current_slice[i];
+                    const u_val = @as(UT, @bitCast(item)) ^ sign_flip_mask;
+                    const bucket_index: usize = @intCast((@as(usize, u_val) >> _shift) & 255);
+                    other_slice[counts[bucket_index]] = item;
+                    counts[bucket_index] += 1;
+                }
+
+                const tmp = current_slice;
+                current_slice = other_slice;
+                other_slice = tmp;
+            }
+
+            if(current_slice != slice.ptr)
+                @memcpy(slice, current_slice);
         }
 
 

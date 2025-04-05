@@ -2,6 +2,7 @@ const std = @import("std");
 const env = @import("env.zig");
 const rand = @import("rand");
 const utils = @import("utils");
+const sorts = @import("sorts");
 const String = @import("string");
 const search = @import("search.zig");
 const runner = @import("runner.zig");
@@ -12,35 +13,58 @@ const time = std.time;
 const SIZE = 10_485_760; // 10 MB x 4
 
 fn check(dst: anytype, src: anytype) bool {
-    for (0..src.len) |i|
-        if (src[i] != dst[i])
+    for(0..src.len) |i|
+        if(src[i] != dst[i])
             return false;
 
     return true;
 }
 
 pub fn main() !void {
+    // const some: i8 = -50;
+    // const another = @as(u8, @intCast(some));
+    // std.debug.print("{} | {}", .{ some, another });
     var dba = std.heap.DebugAllocator(.{}).init;
     defer _ = dba.deinit();
     const allocator = dba.allocator();
 
-    const thing = try allocator.alloc(u8, 4096);
-    defer allocator.free(thing);
+    var thing = Stack(u64).init(allocator, 32);
+    defer thing.deinit();
+    try thing.push(122);
+    try thing.push(12);
+    try thing.push(9);
+    try thing.push(1);
+    try thing.push(15);
+    try thing.push(155);
+    try thing.push(115);
+    try thing.push(5);
+    try thing.push(6);
+    try thing.push(7);
+    try thing.push(2);
+    try thing.push(11);
+    std.debug.print("Stack: {}\n", .{ thing });
+    try sorts.radixSort2(u64, thing.items, allocator);
+    std.debug.print("Stack: {}\n", .{ thing });
 
-    var t = try String.read_int_endl(usize, thing);
-    var vec = Stack(i32).init(allocator, 100);
-    defer vec.deinit();
+    // try runner.run_radsort_bench_with_check(true);
+    // try runner.run_radsort2_bench_with_check(true);
+    // try runner.run_radsort_bench(false);
+    // try runner.run_radsort2_bench(false);
 
-    while(t != 0) : (t -= 1) {
-        const n = try String.read_int_endl(usize, thing) - 1;
-        for(0..n) |_| {
-            vec.pushAssumeCap(try String.read_int(i32, thing));
-        }
-        vec.pushAssumeCap(try String.read_int_endl(i32, thing));
-        vec.sort();
-        std.debug.print("{}\n", .{ vec.items[vec.len - 2] - vec.items[0] });
-        vec.len = 0;
-    }
+    // var t = try String.read_int_endl(usize, thing);
+    // var vec = Stack(i32).init(allocator, 100);
+    // defer vec.deinit();
+
+    // while(t != 0) : (t -= 1) {
+    //     const n = try String.read_int_endl(usize, thing) - 1;
+    //     for(0..n) |_| {
+    //         vec.pushAssumeCap(try String.read_int(i32, thing));
+    //     }
+    //     vec.pushAssumeCap(try String.read_int_endl(i32, thing));
+    //     vec.sort();
+    //     std.debug.print("{}\n", .{ vec.items[vec.len - 2] - vec.items[0] });
+    //     vec.len = 0;
+    // }
 
     // var start = time.nanoTimestamp();
     // const stdp = try std.fmt.parseInt(i128, some, 10);

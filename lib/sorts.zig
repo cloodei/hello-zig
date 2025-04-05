@@ -162,7 +162,6 @@ pub fn merge_sort_functional(comptime T: type, allocator: Allocator, arr: []T, c
     const buffer = try allocator.alloc(T, n);
     defer allocator.free(buffer);
 
-    var inBuffer = false;
     var width: usize = RUN;
     var src = arr.ptr;
     var dst = buffer.ptr;
@@ -175,10 +174,9 @@ pub fn merge_sort_functional(comptime T: type, allocator: Allocator, arr: []T, c
             merge(T, src, dst, i, mid, right, cmp);
         }
         swap([*]T, &src, &dst);
-        inBuffer = !inBuffer;
     }
 
-    if(inBuffer)
+    if(src != arr.ptr)
         @memcpy(arr.ptr, buffer);
 }
 
@@ -223,7 +221,6 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
     };
     defer allocator.free(buffer);
 
-    var inBuffer = false;
     var width: usize = RUN;
     var src = arr.ptr;
     var dst = buffer.ptr;
@@ -236,10 +233,9 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
             merge(T, src, dst, i, mid, right, lt);
         }
         swap([*]T, &src, &dst);
-        inBuffer = !inBuffer;
     }
 
-    if(inBuffer)
+    if(src != arr.ptr)
         @memcpy(arr.ptr, buffer);
 }
 
@@ -314,6 +310,85 @@ pub fn heap_sort_functional(comptime T: type, arr: []T, cmp: fn(T, T) bool) void
     while(i != 0) : (i -= 1) {
         swap(T, &arr[0], &arr[i], cmp);
         heapify(T, arr.ptr, i, 0, cmp);
+    }
+}
+
+
+/// Performs an optimized LSD Radix Sort on a slice of signed integers.
+///
+/// Sorts `arr` in place. Requires an `allocator` to allocate a temporary
+/// buffer of the same size as `arr`.
+///
+/// Handles signed integers (i8 through i128) by mapping them to unsigned
+/// integers in an order-preserving way (flipping the sign bit) before sorting.
+/// Uses a radix of 256 (8 bits per pass).
+///
+/// Parameters:
+///   - T: The signed integer type (e.g., i32, i64, i128). Must be a signed integer type.
+///   - allocator: A memory allocator for the temporary buffer.
+///   - arr: The slice of signed integers to sort.
+///
+/// Returns:
+///   - `void` on success.
+///   - `Allocator.Error.OutOfMemory` if buffer allocation fails.
+pub fn radixSort2(comptime T: type, items: []T, allocator: std.mem.Allocator) !void {
+    comptime if(@typeInfo(T) != .int)
+        @compileError("radixSort requires an integer type");
+
+    const n = items.len;
+    if(n < 2)
+        return;
+        
+    const info = @typeInfo(T).int;
+    const is_signed = info.signedness == .signed;
+    const UnsignedT = std.meta.Int(.unsigned, info.bits);
+    
+    const num_passes = @sizeOf(T);
+
+    var buffer = try allocator.alloc(T, n);
+    defer allocator.free(buffer);
+
+    var histogram: [256]usize = undefined;
+
+    var pass = comptime switch(num_passes) {
+        1    => @as(u3, 0),
+        2    => @as(u4, 0),
+        4    => @as(u5, 0),
+        8    => @as(u6, 0),
+        16   => @as(u7, 0),
+        else => @as(u5, 0)
+    };
+    while(pass < num_passes) : (pass += 1) {
+        @memset(&histogram, 0);
+        const is_last_pass = (pass == num_passes - 1);
+
+        for(items) |item| {
+            const value: UnsignedT = @bitCast(item);
+            var digit = @as(u32, @intCast((value >> (pass * 8)) & 0xFF));
+            if(is_signed and is_last_pass)
+                digit ^= 0x80;
+                
+            histogram[digit] += 1;
+        }
+
+        var pos: usize = 0;
+        for(&histogram) |*count| {
+            const tmp = count.*;
+            count.* = pos;
+            pos += tmp;
+        }
+
+        for(items) |item| {
+            const value: UnsignedT = @bitCast(item);
+            var digit = @as(u32, @intCast((value >> (pass * 8)) & 0xFF));
+            if(is_signed and is_last_pass)
+                digit ^= 0x80;
+                
+            buffer[histogram[digit]] = item;
+            histogram[digit] += 1;
+        }
+
+        @memcpy(items.ptr, buffer);
     }
 }
 
