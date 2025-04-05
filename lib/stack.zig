@@ -2,6 +2,7 @@
 //! Oversized numbers or runtime-available capacity is undefined behavior
 
 const std = @import("std");
+const sorts = @import("sorts");
 const assert = std.debug.assert;
 
 pub const LengthError = error{ InsufficientLength, InvalidLength };
@@ -13,20 +14,18 @@ pub const PosError = error{ InvalidPos };
 pub fn Stack(comptime T: type) type {
     comptime assert(@sizeOf(T) > 0);
     const info = comptime @typeInfo(T);
-
-    const lt = comptime sw: switch(info) {
-        .@"struct", .@"enum", .@"union" => {
-            if(@hasDecl(T, "cmp")) {
-                break :sw struct {
+    
+    const lt = comptime switch(info) {
+        .@"struct", .@"enum", .@"union" => if(@hasDecl(T, "cmp")) {
+                struct {
                     fn lt(a: T, b: T) bool { return a.cmp(b); }
                 }.lt;
             }
             else {
-                break :sw struct {
+                struct {
                     fn lt(a: T, b: T) bool { return a < b; }
                 }.lt;
-            }
-        },
+            },
         else => struct {
             fn lt(a: T, b: T) bool { return a < b; }
         }.lt
@@ -70,8 +69,24 @@ pub fn Stack(comptime T: type) type {
             return init(allocator, 8);
         }
 
+        /// Init Stack as a copy of `other` Stack
+        pub fn initCopy(allocator: std.mem.Allocator, other: Self) Self {
+            var res = init(allocator, other.len);
+            res.copyFrom(other);
+
+            return res;
+        }
+
+        /// Init Stack as a copy of `buffer`
+        pub fn initCopyArr(allocator: std.mem.Allocator, buffer: []T) Self {
+            var res = init(allocator, buffer.len);
+            res.copyFromArr(buffer);
+
+            return res;
+        }
+
         /// Deallocate Stack
-        pub fn deinit(this: *Self) void {
+        pub fn deinit(this: Self) void {
             this.allocator.free(this.items);
         }
 
@@ -407,7 +422,8 @@ pub fn Stack(comptime T: type) type {
         }
 
 
-        /// Copy current Stack into `buffer`
+        /// Copy current Stack into `buffer`\
+        /// `buffer` must have enough space for copy
         pub fn copyIntoArr(this: Self, buffer: []T) void {
             if(buffer.len < this.len) {
                 @branchHint(.unlikely);
@@ -417,10 +433,29 @@ pub fn Stack(comptime T: type) type {
             @memcpy(buffer.ptr, this.arr());
         }
 
-        /// Copy current Stack into `other` Stack
+        /// Copy current Stack into `other` Stack\
+        /// `other` Stack must have enough space for copy
         pub fn copyInto(this: Self, other: *Self) void {
             this.copyIntoArr(other.items);
             other.len = this.len;
+        }
+
+        /// Copy `buffer` into current Stack\
+        /// Current Stack must have enough space for copy
+        pub fn copyFromArr(this: *Self, buffer: []T) void {
+            if(this.capacity() < buffer.len) {
+                @branchHint(.unlikely);
+                return;
+            }
+            
+            @memcpy(this.items.ptr, buffer);
+            this.len = buffer.len;
+        }
+
+        /// Copy `other` Stack into current Stack\
+        /// Current Stack must have enough space for copy
+        pub fn copyFrom(this: *Self, other: Self) void {
+            other.copyInto(this);
         }
 
         /// Get a new array as copy of the entire Stack
@@ -432,11 +467,15 @@ pub fn Stack(comptime T: type) type {
         }
 
         /// Get a new allocated copy of current Stack
-        pub fn copy(this: Self) Self {
-            var buffer = init(this.allocator, this.len);
-            this.copyInto(&buffer);
+        pub fn copy(this: Self) !Self {
+            const buffer = try this.arrCopy();
 
-            return buffer;
+            return Self {
+                .allocator = this.allocator,
+                .items = buffer,
+                .len = this.len,
+                .string_representation = this.string_representation
+            };
         }
 
         /// Take complete ownership of `other` Stack's memory, rendering it undefined (completely O(1), does not copy)
@@ -447,11 +486,7 @@ pub fn Stack(comptime T: type) type {
                 return;
 
             this.deinit();
-            this.items = other.items;
-            this.len = other.len;
-
-            other.len = 0;
-            other.items = &[_]T {};
+            this.* = other.move();
         }
 
         /// Take complete ownership of current Stack's memory, rendering it undefined (completely O(1), does not copy)
@@ -474,13 +509,13 @@ pub fn Stack(comptime T: type) type {
         /// Sorts entire Stack in ascending order\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
         pub fn sort(this: *Self) void {
-            qsort(this.arr(), lt);
+            sorts.quick_sort_functional(T, this.arr(), lt);
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted in ascending order\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
-        pub fn toSorted(this: Self) Self {
-            var buffer = this.copy();
+        pub fn toSorted(this: Self) !Self {
+            var buffer = try this.copy();
             buffer.sort();
 
             return buffer;
@@ -490,7 +525,7 @@ pub fn Stack(comptime T: type) type {
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
         pub fn toSortedArr(this: Self) ![]T {
             const res = try this.arrCopy();
-            qsort(res, lt);
+            sorts.quick_sort_functional(T, res, lt);
 
             return res;
         }
@@ -501,7 +536,7 @@ pub fn Stack(comptime T: type) type {
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than sorts descending
         pub fn sortSpec(this: *Self, comptime comp: fn(T, T) bool) void {
-            qsort(this.arr(), comp);
+            sorts.quick_sort_functional(T, this.arr(), comp);
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted according to comparator\
@@ -509,8 +544,8 @@ pub fn Stack(comptime T: type) type {
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
-        pub fn toSortedSpec(this: Self, comptime comp: fn(T, T) bool) Self {
-            var buffer = this.copy();
+        pub fn toSortedSpec(this: Self, comptime comp: fn(T, T) bool) !Self {
+            var buffer = try this.copy();
             buffer.sortSpec(comp);
 
             return buffer;
@@ -523,152 +558,35 @@ pub fn Stack(comptime T: type) type {
         /// Less than operator (a < b) sorts ascending, greater than operator (a > b) sorts descending
         pub fn toSortedArrSpec(this: Self, comptime comp: fn(T, T) bool) ![]T {
             const buffer = try this.arrCopy();
-            qsort(buffer, comp);
+            sorts.quick_sort_functional(T, buffer, comp);
 
             return buffer;
         }
 
         /// Sorts entire Stack in ascending order\
-        /// Internally uses LSD RadixSort, ~O(256n) time, O(n) space. Fastest possible sort for purely integer Stack
-        pub fn sortInt(this: *Self) !void {
-            try radixSort(this.items, this.allocator);
+        /// Internally uses LSD RadixSort, O(n * d) time, O(n) space. Fastest possible sort for purely integer Stack
+        pub fn sortInt(this: *Self) void {
+            sorts.radixSort(T, this.arr());
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted in ascending order\
-        /// Internally uses LSD RadixSort, ~O(256n) time, O(n) space. Fastest possible sort for purely integer Stack
-        pub fn toSortedInt(this: Self) Self {
-            var buffer = this.copy();
-            try buffer.sortInt();
+        /// Internally uses LSD RadixSort, O(n * d) time, O(n) space. Fastest possible sort for purely integer Stack
+        pub fn toSortedInt(this: Self) !Self {
+            var buffer = try this.copy();
+            buffer.sortInt();
 
             return buffer;
         }
 
         /// Return a new allocated array copy of current Stack, sorted in ascending order\
-        /// Internally uses LSD RadixSort, ~O(256n) time, O(n) space. Fastest possible sort for purely integer Stack
+        /// Internally uses LSD RadixSort, O(n * d) time, O(n) space. Fastest possible sort for purely integer Stack
         pub fn toSortedArrInt(this: Self) ![]T {
             const res = try this.arrCopy();
-            try radixSort(res, this.allocator);
+            sorts.radixSort(T, res);
 
             return res;
         }
         
-
-        fn internal(array: [*]T, left: usize, right: usize, comp: fn(a: T, b: T) bool) void {
-            if(right - left < 24) {
-                var i: usize = left + 1;
-                while(i <= right) : (i += 1) {
-                    const k = array[i];
-                    var j = i;
-                    while(j > left and comp(k, array[j - 1])) : (j -= 1)
-                        array[j] = array[j - 1];
-                    
-                    array[j] = k;
-                }
-                return;
-            }
-
-            const mid = (left + right) / 2;
-            if(comp(array[right], array[left]))
-                _swap(&array[left], &array[right]);
-            if(comp(array[mid], array[left]))
-                _swap(&array[left], &array[mid]);
-            if(comp(array[mid], array[right]))
-                _swap(&array[mid],  &array[right]);
-
-            const pivot = array[right];
-            var i = left + 1;
-            var j = right - 1;
-
-            while(true) : ({ i += 1; j -= 1; }) {
-                while(comp(array[i], pivot)) i += 1;
-                while(comp(pivot, array[j])) j -= 1;
-
-                if(i >= j)
-                    break;
-                _swap(&array[i], &array[j]);
-            }
-
-            _swap(&array[i], &array[right]);
-            internal(array, left, i - 1, comp);
-            internal(array, i + 1, right, comp);
-        }
-        inline fn _swap(a: *T, b: *T) void {
-            const t = a.*;
-            a.* = b.*;
-            b.* = t;
-        }
-        fn qsort(array: []T, comp: fn(T, T) bool) void {
-            const n = array.len;
-
-            if(n > 1) {
-                @branchHint(.likely);
-                internal(array.ptr, 0, n - 1, comp);
-            }
-        }
-                
-        fn radixSort(slice: []T, allocator: std.mem.Allocator) !void {
-            const n = slice.len;
-            if(n < 2)
-                return;
-
-            const UT = comptime sw: switch(info) {
-                .int => |_| {
-                    var some = info;
-                    some.int.signedness = .unsigned;
-                    break :sw @Type(some);
-                },
-                else => {
-                    return error{ InvalidType };
-                }
-            };
-            const BitWidth = @bitSizeOf(T);
-            const num_passes = comptime (BitWidth + 8 - 1) / 8;
-            const sign_flip_mask: UT = comptime (@as(UT, 1) << (BitWidth - 1));
-
-            const buffer = try allocator.alloc(T, n);
-            defer allocator.free(buffer);
-
-            var current_slice = slice.ptr;
-            var other_slice = buffer.ptr;
-
-            var counts: [256]usize = undefined;
-            var pass: usize = 0;
-            while(pass < num_passes) : (pass += 1) {
-                @memset(&counts, 0);
-                const _shift: u6 = @intCast(pass * 8);
-                var i: usize = 0;
-                while(i < n) : (i += 1) {
-                    const u_val = @as(UT, @bitCast(current_slice[i])) ^ sign_flip_mask;
-                    const bucket_index: usize = @intCast((@as(usize, u_val) >> _shift) & 255);
-                    counts[bucket_index] += 1;
-                }
-
-                var prefix_sum: usize = 0;
-                i = 0;
-                while(i < 256) : (i += 1) {
-                    const _count = counts[i];
-                    counts[i] = prefix_sum;
-                    prefix_sum += _count;
-                }
-
-                i = 0;
-                while(i < n) : (i += 1) {
-                    const item = current_slice[i];
-                    const u_val = @as(UT, @bitCast(item)) ^ sign_flip_mask;
-                    const bucket_index: usize = @intCast((@as(usize, u_val) >> _shift) & 255);
-                    other_slice[counts[bucket_index]] = item;
-                    counts[bucket_index] += 1;
-                }
-
-                const tmp = current_slice;
-                current_slice = other_slice;
-                other_slice = tmp;
-            }
-
-            if(current_slice != slice.ptr)
-                @memcpy(slice, current_slice);
-        }
-
 
         /// Formats the Stack for I/O writers, use default { } formatting and pass the entire Stack object
         /// 
@@ -689,6 +607,9 @@ pub fn Stack(comptime T: type) type {
                             else {
                                 try writer.print("{any}", .{ this.items[i] });
                             }
+                        }
+                        else {
+                            try writer.print("{any}", .{ this.items[i] });
                         }
                     },
                     .array => try writer.print("{any}", .{ this.items[i] }),

@@ -66,6 +66,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("sorts", sorts_mod);
+    stack_mod.addImport("sorts", sorts_mod);
 
     const utils_mod = b.createModule(.{
         .root_source_file = b.path("lib/utils.zig"),

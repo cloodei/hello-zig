@@ -314,82 +314,105 @@ pub fn heap_sort_functional(comptime T: type, arr: []T, cmp: fn(T, T) bool) void
 }
 
 
-/// Performs an optimized LSD Radix Sort on a slice of signed integers.
+/// Optimized LSD Radix Sort on a slice of signed integers (short-circuits on any non-integer types).
 ///
-/// Sorts `arr` in place. Requires an `allocator` to allocate a temporary
-/// buffer of the same size as `arr`.
+/// Sorts `arr` in place. Requires an `allocator` to allocate a temporary buffer of the same size as `arr`.\
+/// O(n * d) time, where `d` is the number of digits of largest element; O(n) space
 ///
 /// Handles signed integers (i8 through i128) by mapping them to unsigned
 /// integers in an order-preserving way (flipping the sign bit) before sorting.
 /// Uses a radix of 256 (8 bits per pass).
-///
-/// Parameters:
-///   - T: The signed integer type (e.g., i32, i64, i128). Must be a signed integer type.
-///   - allocator: A memory allocator for the temporary buffer.
-///   - arr: The slice of signed integers to sort.
-///
-/// Returns:
-///   - `void` on success.
-///   - `Allocator.Error.OutOfMemory` if buffer allocation fails.
-pub fn radixSort2(comptime T: type, items: []T, allocator: std.mem.Allocator) !void {
+pub fn radixSort(comptime T: type, arr: []T) void {
     comptime if(@typeInfo(T) != .int)
-        @compileError("radixSort requires an integer type");
+        @compileError("Can't Radix Sort on non-integers");
 
-    const n = items.len;
+    const n = arr.len;
     if(n < 2)
         return;
         
-    const info = @typeInfo(T).int;
-    const is_signed = info.signedness == .signed;
+    const info = comptime @typeInfo(T).int;
+    const is_signed = comptime info.signedness == .signed;
     const UnsignedT = std.meta.Int(.unsigned, info.bits);
     
-    const num_passes = @sizeOf(T);
+    const num_passes = comptime @sizeOf(T) - 1;
+    comptime var pass = switch(num_passes) {
+        0    => @as(u3, 0),
+        1    => @as(u4, 0),
+        3    => @as(u5, 0),
+        7    => @as(u6, 0),
+        15   => @as(u7, 0),
+        else => @as(u5, 0)
+    };
 
-    var buffer = try allocator.alloc(T, n);
+    const allocator = std.heap.smp_allocator;
+    const buffer = allocator.alloc(T, n) catch @panic("Can't alloc temp buffer!");
     defer allocator.free(buffer);
 
     var histogram: [256]usize = undefined;
+    var src = arr;
+    var dst = buffer;
 
-    var pass = comptime switch(num_passes) {
-        1    => @as(u3, 0),
-        2    => @as(u4, 0),
-        4    => @as(u5, 0),
-        8    => @as(u6, 0),
-        16   => @as(u7, 0),
-        else => @as(u5, 0)
-    };
-    while(pass < num_passes) : (pass += 1) {
+    var pos: usize = 0;
+
+    inline while(pass != num_passes) : (pass += 1) {
         @memset(&histogram, 0);
-        const is_last_pass = (pass == num_passes - 1);
-
-        for(items) |item| {
+        for(src) |item| {
             const value: UnsignedT = @bitCast(item);
-            var digit = @as(u32, @intCast((value >> (pass * 8)) & 0xFF));
-            if(is_signed and is_last_pass)
-                digit ^= 0x80;
-                
+            const digit = @as(u8, @truncate(value >> (pass * 8))) & 0xFF;
             histogram[digit] += 1;
         }
 
-        var pos: usize = 0;
         for(&histogram) |*count| {
             const tmp = count.*;
             count.* = pos;
             pos += tmp;
         }
+        pos = 0;
 
-        for(items) |item| {
+        for(src) |item| {
             const value: UnsignedT = @bitCast(item);
-            var digit = @as(u32, @intCast((value >> (pass * 8)) & 0xFF));
-            if(is_signed and is_last_pass)
-                digit ^= 0x80;
-                
-            buffer[histogram[digit]] = item;
+            const digit = @as(u8, @truncate(value >> (pass * 8))) & 0xFF;
+            dst[histogram[digit]] = item;
             histogram[digit] += 1;
         }
 
-        @memcpy(items.ptr, buffer);
+        const tmp = src.ptr;
+        src.ptr = dst.ptr;
+        dst.ptr = tmp;
     }
+
+    @memset(&histogram, 0);
+    for(src) |item| {
+        const value: UnsignedT = @bitCast(item);
+        var digit = @as(u8, @truncate(value >> (pass * 8))) & 0xFF;
+        if(is_signed)
+            digit ^= 0x80;
+            
+        histogram[digit] += 1;
+    }
+
+    for(&histogram) |*count| {
+        const tmp = count.*;
+        count.* = pos;
+        pos += tmp;
+    }
+
+    for(src) |item| {
+        const value: UnsignedT = @bitCast(item);
+        var digit = @as(u8, @truncate(value >> (pass * 8))) & 0xFF;
+        if(is_signed)
+            digit ^= 0x80;
+            
+        dst[histogram[digit]] = item;
+        histogram[digit] += 1;
+    }
+
+    const tmp = src.ptr;
+    src.ptr = dst.ptr;
+    dst.ptr = tmp;
+
+    if(src.ptr != arr.ptr)
+        @memcpy(arr, src.ptr);
 }
 
 

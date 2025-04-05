@@ -193,15 +193,7 @@ pub fn runCheckRS(allocator: Allocator, timer: *Timer) ![]i32 {
     const arr = random.rand_int_arr_in_range(i32, allocator, 1_000_000, 0, 16_000_000);
 
     timer.reset();
-    try sorts.radixSort2(i32, arr, allocator);
-    return arr;
-}
-
-pub fn runCheckRS2(allocator: Allocator, timer: *Timer) ![]u32 {
-    const arr = random.rand_int_arr_in_range(u32, allocator, 1_000_000, 0, 16_000_000);
-
-    timer.reset();
-    try sorts.radixSort(u32, arr, allocator);
+    sorts.radixSort(i32, arr);
     return arr;
 }
 
@@ -242,15 +234,7 @@ pub fn runRS(allocator: Allocator, timer: *Timer) !void {
     defer random.free_rand_arr(allocator, arr);
 
     timer.reset();
-    try sorts.radixSort2(i32, arr, allocator);
-}
-
-pub fn runRS2(allocator: Allocator, timer: *Timer) !void {
-    const arr = random.rand_int_arr_in_range(u32, allocator, 1_000_000, 0, 16_000_000);
-    defer random.free_rand_arr(allocator, arr);
-
-    timer.reset();
-    try sorts.radixSort(u32, arr, allocator);
+    sorts.radixSort(i32, arr);
 }
 
 pub fn run_mergesort_bench(comptime use_dba: bool) !void {
@@ -273,16 +257,9 @@ pub fn run_radsort_bench(comptime use_dba: bool) !void {
     var x = try benchmark.run(runRS, use_dba);
     x.print("Radix Sort");
 }
-pub fn run_radsort2_bench(comptime use_dba: bool) !void {
-    var x = try benchmark.run(runRS2, use_dba);
-    x.print("Radix Sort 2");
-}
 
 pub fn checkSorted(array: []i32) !void {
     std.debug.print("Sorted: {}\n", .{ utils.is_sorted(i32, array) });
-}
-pub fn checkSortedSpec(array: []u32) !void {
-    std.debug.print("Sorted: {}\n", .{ utils.is_sorted(u32, array) });
 }
 
 pub fn run_mergesort_bench_with_check(comptime use_dba: bool) !void {
@@ -305,14 +282,9 @@ pub fn run_radsort_bench_with_check(comptime use_dba: bool) !void {
     var x = try benchmark.runWithReturn([]i32, runCheckRS, checkSorted, use_dba);
     x.print("Radix Sort");
 }
-pub fn run_radsort2_bench_with_check(comptime use_dba: bool) !void {
-    var x = try benchmark.runWithReturn([]u32, runCheckRS2, checkSortedSpec, use_dba);
-    x.print("Radix Sort 2");
-}
 
 pub fn run_all_sorts_bench(comptime use_dba: bool) !void {
     try run_radsort_bench(use_dba);
-    try run_radsort2_bench(use_dba);
     try run_mergesort_bench(use_dba);
     try run_quicksort_bench(use_dba);
     try run_stdsort_bench(use_dba);
@@ -321,7 +293,6 @@ pub fn run_all_sorts_bench(comptime use_dba: bool) !void {
 
 pub fn run_all_sorts_bench_with_check(comptime use_dba: bool) !void {
     try run_radsort_bench_with_check(use_dba);
-    try run_radsort2_bench_with_check(use_dba);
     try run_mergesort_bench_with_check(use_dba);
     try run_quicksort_bench_with_check(use_dba);
     try run_stdsort_bench_with_check(use_dba);
@@ -333,21 +304,25 @@ pub fn run_all_sorts_bench_simul(comptime use_dba: bool) !void {
     var t2 = try std.Thread.spawn(.{}, run_quicksort_bench, .{ use_dba });
     var t3 = try std.Thread.spawn(.{}, run_heapsort_bench,  .{ use_dba });
     var t4 = try std.Thread.spawn(.{}, run_stdsort_bench,   .{ use_dba });
+    var t5 = try std.Thread.spawn(.{}, run_radsort_bench,   .{ use_dba });
 
     t1.join();
     t2.join();
     t3.join();
     t4.join();
+    t5.join();
 }
 
 pub fn run_all_sorts_bench_with_check_simul(comptime use_dba: bool) !void {
     var t1 = try std.Thread.spawn(.{}, run_mergesort_bench_with_check, .{ use_dba });
     var t2 = try std.Thread.spawn(.{}, run_quicksort_bench_with_check, .{ use_dba });
-    var t4 = try std.Thread.spawn(.{}, run_heapsort_bench_with_check,  .{ use_dba });
     var t3 = try std.Thread.spawn(.{}, run_stdsort_bench_with_check,   .{ use_dba });
+    var t4 = try std.Thread.spawn(.{}, run_heapsort_bench_with_check,  .{ use_dba });
+    var t5 = try std.Thread.spawn(.{}, run_radsort_bench_with_check,   .{ use_dba });
 
     t1.join();
     t2.join();
     t3.join();
     t4.join();
+    t5.join();
 }

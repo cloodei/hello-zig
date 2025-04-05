@@ -21,35 +21,14 @@ fn check(dst: anytype, src: anytype) bool {
 }
 
 pub fn main() !void {
-    // const some: i8 = -50;
-    // const another = @as(u8, @intCast(some));
-    // std.debug.print("{} | {}", .{ some, another });
-    var dba = std.heap.DebugAllocator(.{}).init;
-    defer _ = dba.deinit();
-    const allocator = dba.allocator();
-
-    var thing = Stack(u64).init(allocator, 32);
-    defer thing.deinit();
-    try thing.push(122);
-    try thing.push(12);
-    try thing.push(9);
-    try thing.push(1);
-    try thing.push(15);
-    try thing.push(155);
-    try thing.push(115);
-    try thing.push(5);
-    try thing.push(6);
-    try thing.push(7);
-    try thing.push(2);
-    try thing.push(11);
-    std.debug.print("Stack: {}\n", .{ thing });
-    try sorts.radixSort2(u64, thing.items, allocator);
-    std.debug.print("Stack: {}\n", .{ thing });
+    // var dba = std.heap.DebugAllocator(.{}).init;
+    // defer _ = dba.deinit();
+    // const allocator = dba.allocator();
 
     // try runner.run_radsort_bench_with_check(true);
-    // try runner.run_radsort2_bench_with_check(true);
     // try runner.run_radsort_bench(false);
-    // try runner.run_radsort2_bench(false);
+    // try runner.run_all_sorts_bench_with_check(true);
+    try runner.run_all_sorts_bench(false);
 
     // var t = try String.read_int_endl(usize, thing);
     // var vec = Stack(i32).init(allocator, 100);
