@@ -6,6 +6,7 @@ const sorts = @import("sorts");
 const String = @import("string");
 const search = @import("search.zig");
 const runner = @import("runner.zig");
+const contest = @import("vnoi.zig");
 const Stack = @import("stack").Stack;
 
 const time = std.time;
@@ -21,6 +22,7 @@ fn check(dst: anytype, src: anytype) bool {
 }
 
 pub fn main() !void {
+    try contest.m26a();
     // var dba = std.heap.DebugAllocator(.{}).init;
     // defer _ = dba.deinit();
     // const allocator = dba.allocator();
@@ -28,7 +30,7 @@ pub fn main() !void {
     // try runner.run_radsort_bench_with_check(true);
     // try runner.run_radsort_bench(false);
     // try runner.run_all_sorts_bench_with_check(true);
-    try runner.run_all_sorts_bench(false);
+    // try runner.run_all_sorts_bench(false);
 
     // var t = try String.read_int_endl(usize, thing);
     // var vec = Stack(i32).init(allocator, 100);

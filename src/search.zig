@@ -1,7 +1,7 @@
 const std = @import("std");
+const utils = @import("utils");
 const Queue = @import("queue").Queue;
 const Stack = @import("stack").Stack;
-const utils = @import("utils");
 
 const notContains = utils.notContains;
 const memcpy = utils.memcpy;

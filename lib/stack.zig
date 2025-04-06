@@ -71,7 +71,7 @@ pub fn Stack(comptime T: type) type {
 
         /// Init Stack as a copy of `other` Stack
         pub fn initCopy(allocator: std.mem.Allocator, other: Self) Self {
-            var res = init(allocator, other.len);
+            var res = init(allocator, if(other.len != 0) other.len else other.capacity());
             res.copyFrom(other);
 
             return res;
@@ -106,8 +106,12 @@ pub fn Stack(comptime T: type) type {
         }
 
         /// You know!!
-        pub inline fn top(this: Self) T {
-            assert(this.len != 0);
+        pub inline fn top(this: Self) ?T {
+            if(this.len == 0) {
+                @branchHint(.unlikely);
+                return null;
+            }
+
             return this.items[this.len - 1];
         }
 
@@ -313,7 +317,7 @@ pub fn Stack(comptime T: type) type {
 
         /// Returns a new allocated copy of current Stack, popped of the last element
         pub fn toPop(this: Self) !Self {
-            var res = this.copy();
+            var res = try this.copy();
             if(res.len != 0) {
                 @branchHint(.likely);
                 res.len -= 1;
