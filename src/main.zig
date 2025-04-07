@@ -49,6 +49,7 @@ fn checkSorted(comptime T: type, former: []T, latter: []T) bool {
 
 pub fn main() !void {
     // try contest.m26a();
+    try contest.cpp_ptit_41();
 
     // var dba = std.heap.DebugAllocator(.{}).init;
     // defer _ = dba.deinit();
@@ -64,7 +65,7 @@ pub fn main() !void {
     // std.debug.print("Arr: {any}\nSorted: {}\n", .{ arr, checkSorted(i8, copy, arr) });
 
     // try runner.run_radsort_bench_with_check(true);
-    try runner.run_radsort_bench(false);
+    // try runner.run_radsort_bench(false);
     // try runner.run_all_sorts_bench_with_check(true);
     // try runner.run_all_sorts_bench(false);
 

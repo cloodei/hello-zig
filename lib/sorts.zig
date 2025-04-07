@@ -119,26 +119,26 @@ pub fn quick_sort_functional(comptime T: type, arr: []T, comptime cmp: fn(T, T) 
 
 
 
-fn merge(comptime T: type, arr: [*]T, buffer: [*]T, left: usize, mid: usize, right: usize, comptime cmp: fn(a: T, b: T) bool) void {
+fn merge(comptime T: type, src: [*]T, dst: [*]T, left: usize, mid: usize, right: usize, comptime cmp: fn(a: T, b: T) bool) void {
     var i = left;
     var curr = left;
     var j = mid;
 
     while(i < mid and j < right) : (curr += 1) {
-        if(cmp(arr[i], arr[j])) {
-            buffer[curr] = arr[i];
+        if(cmp(src[i], src[j])) {
+            dst[curr] = src[i];
             i += 1;
         }
         else {
-            buffer[curr] = arr[j];
+            dst[curr] = src[j];
             j += 1;
         }
     }
 
     while(i <  mid)  : ({ i += 1; curr += 1; })
-        buffer[curr] = arr[i];
+        dst[curr] = src[i];
     while(j < right) : ({ j += 1; curr += 1; })
-        buffer[curr] = arr[j];
+        dst[curr] = src[j];
 }
 
 /// More operational MergeSort, must take in designated allocator for buffer allocation and a comparator function
@@ -168,11 +168,9 @@ pub fn merge_sort_functional(comptime T: type, allocator: Allocator, arr: []T, c
 
     while(width < n) : (width *= 2) {
         i = 0;
-        while(i < n) : (i += (width * 2)) {
-            const mid = min(i + width, n);
-            const right = min(mid + width, n);
-            merge(T, src, dst, i, mid, right, cmp);
-        }
+        while(i < n) : (i += width * 2)
+            merge(T, src, dst, i, min(i + width, n), min(i + width * 2, n), cmp);
+
         swap([*]T, &src, &dst);
     }
 
@@ -190,19 +188,17 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
         return;
     }
 
-    const lt = comptime sw: switch(@typeInfo(T)) {
-        .@"struct", .@"enum", .@"union" => {
-            if(@hasDecl(T, "cmp")) {
-                break :sw struct {
+    const lt = comptime switch(@typeInfo(T)) {
+        .@"struct", .@"enum", .@"union" => if(@hasDecl(T, "cmp")) {
+                struct {
                     fn lt(a: T, b: T) bool { return a.cmp(b); }
                 }.lt;
             }
             else {
-                break :sw struct {
+                struct {
                     fn lt(a: T, b: T) bool { return a < b; }
                 }.lt;
-            }
-        },
+            },
         else => struct {
             fn lt(a: T, b: T) bool { return a < b; }
         }.lt
@@ -227,11 +223,9 @@ pub fn mergeSort(comptime T: type, arr: []T) void {
 
     while(width < n) : (width *= 2) {
         i = 0;
-        while(i < n) : (i += width * 2) {
-            const mid = min(i + width, n);
-            const right = min(mid + width, n);
-            merge(T, src, dst, i, mid, right, lt);
-        }
+        while(i < n) : (i += width * 2)
+            merge(T, src, dst, i, min(i + width, n), min(i + width * 2, n), lt);
+
         swap([*]T, &src, &dst);
     }
 
