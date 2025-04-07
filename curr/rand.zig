@@ -11,7 +11,7 @@ pub inline fn cryptoRand() std.Random {
 }
 
 
-pub fn free_rand_arr(allocator: std.mem.Allocator, arr: anytype) void {
+pub inline fn free_rand_arr(allocator: std.mem.Allocator, arr: anytype) void {
     allocator.free(arr);
 }
 
@@ -37,6 +37,16 @@ pub inline fn rand_int_arr(comptime T: type, allocator: std.mem.Allocator, compt
     return rand_int_arr_in_range(T, allocator, size, std.math.minInt(T), std.math.maxInt(T));
 }
 
+pub fn rand_i8_arr(size: usize) []i8 {
+    const buffer = std.heap.smp_allocator.alloc(i8, size) catch @panic("but nobody came...");
+    const rand = random();
+
+    for(buffer) |*i|
+        i.* = rand.int(i8);
+        
+    return buffer;
+}
+
 pub fn rand_uint_arr_max(comptime T: type, allocator: std.mem.Allocator, comptime size: usize, comptime max: T) []T {
     var buffer = allocator.alloc(T, size) catch @panic("but nobody came...");
     const rand = random();
@@ -59,4 +69,8 @@ pub fn rand_float_arr_max(comptime size: usize, allocator: std.mem.Allocator) []
         buffer[i] = rand.float(f64);
         
     return buffer;
+}
+
+pub inline fn free_i8_arr(arr: anytype) void {
+    std.heap.smp_allocator.free(arr);
 }

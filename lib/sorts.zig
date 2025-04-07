@@ -334,9 +334,9 @@ pub fn radixSort(comptime T: type, arr: []T) void {
     const is_signed = comptime info.signedness == .signed;
     const UnsignedT = std.meta.Int(.unsigned, info.bits);
     
-    const num_passes = comptime @sizeOf(T) - 1;
+    const num_passes: comptime_int = comptime @sizeOf(T) - 1;
     comptime var pass = switch(num_passes) {
-        0    => @as(u3, 0),
+        0    => @as(u4, 0),
         1    => @as(u4, 0),
         3    => @as(u5, 0),
         7    => @as(u6, 0),
@@ -381,6 +381,7 @@ pub fn radixSort(comptime T: type, arr: []T) void {
         dst.ptr = tmp;
     }
 
+    // last pass to handle signed bit
     @memset(&histogram, 0);
     for(src) |item| {
         const value: UnsignedT = @bitCast(item);
@@ -407,12 +408,8 @@ pub fn radixSort(comptime T: type, arr: []T) void {
         histogram[digit] += 1;
     }
 
-    const tmp = src.ptr;
-    src.ptr = dst.ptr;
-    dst.ptr = tmp;
-
-    if(src.ptr != arr.ptr)
-        @memcpy(arr, src.ptr);
+    if(comptime(@sizeOf(T) == 1))
+        @memcpy(arr, dst.ptr);
 }
 
 

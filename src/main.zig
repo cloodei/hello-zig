@@ -21,14 +21,50 @@ fn check(dst: anytype, src: anytype) bool {
     return true;
 }
 
+fn checkSorted(comptime T: type, former: []T, latter: []T) bool {
+    const n = latter.len;
+    if(former.len != n)
+        return false;
+    if(former.len == 0)
+        return true;
+
+    var i: usize = 1;
+    while(i < n) : (i += 1)
+        if(latter[i] < latter[i - 1])
+            return false;
+
+    const allocator = std.heap.smp_allocator;
+    const orig = allocator.alloc(T, n) catch unreachable;
+    defer allocator.free(orig);
+    @memcpy(orig.ptr, former);
+
+    std.sort.pdq(T, orig, {}, std.sort.asc(T));
+
+    for(orig, latter) |a, b|
+        if(a != b)
+            return false;
+
+    return true;
+}
+
 pub fn main() !void {
-    try contest.m26a();
+    // try contest.m26a();
+
     // var dba = std.heap.DebugAllocator(.{}).init;
     // defer _ = dba.deinit();
     // const allocator = dba.allocator();
 
+    // const arr = rand.rand_i8_arr(25);
+    // defer rand.free_i8_arr(arr);
+    // const copy = try allocator.alloc(i8, arr.len);
+    // defer allocator.free(copy);
+    // @memcpy(copy, arr.ptr);
+    // std.debug.print("Arr: {any}\n", .{ arr });
+    // sorts.radixSort(i8, arr);
+    // std.debug.print("Arr: {any}\nSorted: {}\n", .{ arr, checkSorted(i8, copy, arr) });
+
     // try runner.run_radsort_bench_with_check(true);
-    // try runner.run_radsort_bench(false);
+    try runner.run_radsort_bench(false);
     // try runner.run_all_sorts_bench_with_check(true);
     // try runner.run_all_sorts_bench(false);
 
