@@ -2,7 +2,7 @@ const std = @import("std");
 const Stack = @import("stack").Stack;
 const Allocator = std.mem.Allocator;
 
-pub const Error = error{ OutOfMemory, InvalidRange, InvalidLength };
+pub const Error = error{ OutOfMemory, InvalidRange, InvalidLength, NaN };
 
 const Self = @This();
 
@@ -13,11 +13,26 @@ len: usize,
 
 /// Initialize an empty String with `allocator`
 pub inline fn init(allocator: Allocator) Error!Self {
+    return init_prototype(allocator, 16);
+}
+
+/// Initialize an empty String with default allocator
+pub inline fn init_default() Error!Self {
+    return Self.init(std.heap.smp_allocator);
+}
+
+/// Initialize an empty String with `allocator` and `cap`
+pub inline fn init_prototype(allocator: Allocator, cap: usize) Error!Self {
     return Self {
         .allocator = allocator,
-        .buffer = try allocator.alloc(u8, 16),
+        .buffer = try allocator.alloc(u8, cap),
         .len = 0,
     };
+}
+
+/// Initialize an empty String with default allocator and `cap`
+pub fn init_cap(cap: usize) Error!Self {
+    return Self.init_prototype(std.heap.smp_allocator, cap);
 }
 
 /// Initialize a new allocated copied String from `str`
@@ -278,22 +293,6 @@ pub fn eql_str(this: Self, str: []const u8) bool {
     return std.mem.eql(u8, this.slice(), str);
 }
 
-/// Declare a universal comparator function for future use cases
-/// 
-/// Return `true` if `this` has a lower alphabetical order than `other`, else `false`
-pub fn cmp(this: Self, other: Self) bool {
-    const n = this.len;
-
-    if(n != other.len)
-        return n < other.len;
-
-    for(this.buffer[0..n], other.buffer[0..n]) |t, o|
-        if(t != o)
-            return t < o;
-
-    return true;
-}
-
 /// Find the index of the first occurrence of `substr` in the String
 pub fn find(this: Self, substr: Self) ?usize {
     return this.find_str(substr.slice());
@@ -326,7 +325,7 @@ pub fn replace(this: Self, from: []const u8, to: []const u8) Error!Self {
     return result;
 }
 
-/// Split the string by `delimiter` and return an array of strings
+/// Split the string by `delimiter` and return an array of newly allocated strings
 pub fn split(this: Self, delimiter: []const u8) Error!Stack(Self) {
     const n = this.len;
     const m = delimiter.len;
@@ -339,13 +338,41 @@ pub fn split(this: Self, delimiter: []const u8) Error!Stack(Self) {
         if(checkPos) |pos| {
             var part = try Self.init(this.allocator);
             try part.concat_str(this.buffer[start..pos]);
-            result.push(part);
+            try result.push(part);
             start = pos + m;
         }
         else {
             var part = try Self.init(this.allocator);
             try part.concat_str(this.buffer[start..n]);
-            result.push(part);
+            try result.push(part);
+            break;
+        }
+    }
+
+    return result;
+}
+
+/// Split `str` by `delimiter` and return an array of newly allocated strings
+pub fn split_str(str: []const u8, delimiter: []const u8) Error!Stack([]u8) {
+    const n = str.len;
+    const m = delimiter.len;
+
+    const allocator = std.heap.smp_allocator;
+    var result = Stack([]u8).init(allocator, 4 + 2 * @log2(n));
+    var start: usize = 0;
+
+    while(start < n) {
+        const checkPos = std.mem.indexOfPos(u8, str[0..n], start, delimiter);
+        if(checkPos) |pos| {
+            const part = try allocator.alloc(u8, pos - start);
+            @memcpy(part.ptr, str[start..pos]);
+            try result.push(part);
+            start = pos + m;
+        }
+        else {
+            const part = try allocator.alloc(u8, n - start);
+            @memcpy(part.ptr, str[start..n]);
+            try result.push(part);
             break;
         }
     }
@@ -401,8 +428,7 @@ pub fn ends_with_str(this: Self, suffix: []const u8) bool {
     if(suffix.len > n)
         return false;
 
-    const start = n - suffix.len;
-    return std.mem.eql(u8, this.buffer[start..n], suffix);
+    return std.mem.eql(u8, this.buffer[n - suffix.len..n], suffix);
 }
 
 /// Return a substring from `start` to `end` (allowed from [0..n), half-inclusively)
@@ -436,16 +462,16 @@ pub fn count_str(this: Self, substr: []const u8) usize {
 
 
 /// Convert string to integer, return null if invalid format
-pub fn str_parse_int(str: []const u8) ?i128 {
+pub fn str_parse_int(str: []const u8) Error!i128 {
     const n = str.len;
     if(n == 0)
-        return null;
+        return Error.InvalidLength;
 
     var start: usize = 0;
     const negative = str[0] == '-';
     if(negative) {
         if(n == 1)
-            return null;
+            return Error.NaN;
 
         start = 1;
     }
@@ -454,7 +480,7 @@ pub fn str_parse_int(str: []const u8) ?i128 {
     while(start != n) : (start += 1) {
         const digit = str[start] -% '0';
         if(digit > 9)
-            return null;
+            return Error.NaN;
         acc = acc *% 10 +% digit;
     }
 
@@ -462,7 +488,7 @@ pub fn str_parse_int(str: []const u8) ?i128 {
 }
 
 /// Convert string to integer, return null if invalid format
-pub fn parse_int(str: Self) ?i128 {
+pub fn parse_int(str: Self) Error!i128 {
     return str_parse_int(str.slice());
 }
 
@@ -470,15 +496,76 @@ pub fn parse_int(str: Self) ?i128 {
 pub fn read_int_endl(comptime retType: type, buffer: []u8) !retType {
     const stdin = std.io.getStdIn().reader();
     const read = try stdin.readUntilDelimiter(buffer, '\n');
-    return @as(retType, @intCast(str_parse_int(read[0..read.len - 1]).?));
+    return @as(retType, @intCast(try str_parse_int(read[0..read.len - 1])));
 }
 
 /// Read and parse an integer value from stdin until space character, needs a temp buffer to store input
 pub fn read_int(comptime retType: type, buffer: []u8) !retType {
     const stdin = std.io.getStdIn().reader();
-    return @as(retType, @intCast(str_parse_int(try stdin.readUntilDelimiter(buffer, ' ')).?));
+    return @as(retType, @intCast(try str_parse_int(try stdin.readUntilDelimiter(buffer, ' '))));
 }
 
+/// Read and parse integers from stdin until endl character, needs a temp buffer to store input
+///
+/// Return a new allocated Stack of `retType` with the given `amount_to_read`
+pub fn read_line_ints_to_arr_quantified(comptime retType: type, buffer: []u8, amount_to_read: usize) !Stack(retType) {
+    var arr = Stack(retType).init(std.heap.smp_allocator, amount_to_read);
+    for(0..amount_to_read - 1) |_|
+        arr.pushAssumeCap(try read_int(retType, buffer));
+        
+    arr.pushAssumeCap(try read_int_endl(retType, buffer));
+    return arr;
+}
+
+/// Read and parse integers from stdin until endl character, needs a temp buffer to store input
+/// 
+/// Return a new allocated Stack of `retType`
+pub fn read_line_ints_to_arr(comptime retType: type, buffer: []u8) !Stack(retType) {
+    const allocator = std.heap.smp_allocator;
+    const stdin = std.io.getStdIn().reader();
+    const read = try stdin.readUntilDelimiter(buffer, '\n');
+
+    const _split = try split_str(read[0..read.len - 1], " ");
+    var arr = Stack(retType).init(allocator, _split.len);
+    
+    for(_split.items) |item| {
+        const parsed: retType = @intCast(try str_parse_int(item));
+        arr.pushAssumeCap(parsed);
+        allocator.free(item);
+    }
+    _split.deinit();
+
+    return arr;
+}
+
+
+/// Return `true` if `str` has a lower alphabetical order than `other`, else `false`
+pub fn cmp_str(str: []const u8, other: []const u8) bool {
+    if(str.len != other.len)
+        return str.len < other.len;
+
+    for(str, other) |t, o|
+        if(t != o)
+            return t < o;
+
+    return true;
+}
+
+/// Declare a universal comparator function for future use cases
+/// 
+/// Return `true` if `this` has a lower alphabetical order than `other`, else `false`
+pub fn cmp(this: Self, other: Self) bool {
+    const n = this.len;
+
+    if(n != other.len)
+        return n < other.len;
+
+    for(this.buffer[0..n], other.buffer[0..n]) |t, o|
+        if(t != o)
+            return t < o;
+
+    return true;
+}
 
 /// Expose a formatter for the String type, printing at the format "`buffer[0..n]`"
 pub fn format(this: Self, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {

@@ -40,22 +40,15 @@ pub fn cpp_ptit_41() !void {
     defer allocator.free(read_buf);
 
     const n = try String.read_int_endl(usize, read_buf);
-    var endres: usize = 0;
-    var stack = Stack(usize).init(allocator, n + 1);
+    var stack = try String.read_ints_to_arr(usize, read_buf, n);
     defer stack.deinit();
-    for(0..n - 1) |i| {
-        stack.items[i] = try String.read_int(usize, read_buf);
-        endres += stack.items[i];
-    }
-    stack.items[n - 1] = try String.read_int_endl(usize, read_buf);
-    endres += stack.items[n - 1];
-    stack.len = n;
     stack.sortInt();
-    std.debug.print("Stack: {}\n", .{ stack });
 
-    var acc: usize = stack.items[0] + stack.items[1];
-    for(stack.items[2..n]) |item| {
-        acc += (acc + item);
+    var acc: usize = 0;
+    var endres: usize = stack.items[0];
+    for(stack.items[1..n]) |item| {
+        endres += item;
+        acc += endres;
     }
     std.debug.print("{} {}\n", .{ acc, endres });
 }

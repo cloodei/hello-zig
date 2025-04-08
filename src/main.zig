@@ -10,15 +10,13 @@ const contest = @import("vnoi.zig");
 const Stack = @import("stack").Stack;
 
 const time = std.time;
+// const SIZE = 10_485_760; // 10 MB x 4
+// const SIZE = 52_428_800; // 50 MB x 4
+const SIZE = 104_857_600; // 100 MB x 4
 // const SIZE = 268_435_456; // 256 MB x 4
-const SIZE = 10_485_760; // 10 MB x 4
 
 fn check(dst: anytype, src: anytype) bool {
-    for(0..src.len) |i|
-        if(src[i] != dst[i])
-            return false;
-
-    return true;
+    return std.mem.eql(i32, src, dst);
 }
 
 fn checkSorted(comptime T: type, former: []T, latter: []T) bool {
@@ -49,11 +47,11 @@ fn checkSorted(comptime T: type, former: []T, latter: []T) bool {
 
 pub fn main() !void {
     // try contest.m26a();
-    try contest.cpp_ptit_41();
+    // try contest.cpp_ptit_41();
 
-    // var dba = std.heap.DebugAllocator(.{}).init;
-    // defer _ = dba.deinit();
-    // const allocator = dba.allocator();
+    var dba = std.heap.DebugAllocator(.{}).init;
+    defer _ = dba.deinit();
+    const allocator = dba.allocator();
 
     // const arr = rand.rand_i8_arr(25);
     // defer rand.free_i8_arr(arr);
@@ -117,40 +115,39 @@ pub fn main() !void {
     // std.debug.print("{}\n", .{ vec });
     // std.debug.print("{}\n", .{ vec2 });
 
-    // const src = rand.rand_int_arr_min(i32, allocator, SIZE, 1);
-    // defer rand.free_rand_arr(allocator, src);
+    const src = rand.rand_int_arr_min(i32, allocator, SIZE, 1);
+    const dst1 = try allocator.alloc(i32, SIZE);
 
-    // const dst1 = try allocator.alloc(i32, SIZE);
-    // var start = time.microTimestamp();
-    // utils._memcpy(dst1.ptr, src.ptr, SIZE);
-    // var end = time.microTimestamp();
-    // const memcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
-    // const memcpyCheck = check(dst1, src);
-    // allocator.free(dst1);
+    var start = time.microTimestamp();
+    utils._memcpy(dst1.ptr, src.ptr, SIZE);
+    var end = time.microTimestamp();
+    const memcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
+    const memcpyCheck = check(dst1, src);
+    @memset(dst1, 0);
 
-    // const dst2 = try allocator.alloc(i32, SIZE);
-    // start = time.microTimestamp();
-    // @memcpy(dst2.ptr, src);
-    // end = time.microTimestamp();
-    // const stdcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
-    // const stdcpyCheck = check(dst2, src);
-    // allocator.free(dst2);
+    start = time.microTimestamp();
+    @memcpy(dst1.ptr, src);
+    end = time.microTimestamp();
+    const stdcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
+    const stdcpyCheck = check(dst1, src);
+    @memset(dst1, 0);
 
-    // const dst3 = try allocator.alloc(i32, SIZE);
-    // start = time.microTimestamp();
-    // var i: usize = 0;
-    // while(i != dst3.len) : (i += 1)
-    //     dst3[i] = src[i];
-    // end = time.microTimestamp();
-    // const forcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
-    // const forcpyCheck = check(dst3, src);
-    // allocator.free(dst3);
+    start = time.microTimestamp();
+    var i: usize = 0;
+    while(i != dst1.len) : (i += 1)
+        dst1[i] = src[i];
+    end = time.microTimestamp();
+    const forcpyTime = @as(f64, @floatFromInt(end - start)) / 1000.0;
+    const forcpyCheck = check(dst1, src);
 
-    // std.debug.print("Memcpy    : {d} ms | {}\nZig memcpy: {d} ms | {}\nFor memcpy: {d} ms | {}\n", .{
-    //     memcpyTime, memcpyCheck,
-    //     stdcpyTime, stdcpyCheck,
-    //     forcpyTime, forcpyCheck,
-    // });
+    allocator.free(src);
+    allocator.free(dst1);
+
+    std.debug.print("Memcpy    : {d} ms | {}\nZig memcpy: {d} ms | {}\nFor memcpy: {d} ms | {}\n", .{
+        memcpyTime, memcpyCheck,
+        stdcpyTime, stdcpyCheck,
+        forcpyTime, forcpyCheck,
+    });
 
     // var path = try search.BFS(allocator, 0, 11);
     // search.format(path);
