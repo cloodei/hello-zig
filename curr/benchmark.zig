@@ -30,10 +30,8 @@ pub const Result = struct {
         const mdfmt = rounder(&_median);
         const stfmt = rounder(&_stddev);
 
-        std.debug.print("{s}:\n", .{
-            fnName
-        });
-        std.debug.print("  {d} iterations\n  Mean: {d:.2} {c}s\n", .{
+        std.debug.print("{s}:\n  {d} iterations\n  Mean: {d:.2} {c}s\n", .{
+            fnName,
             this.iterations,
             _mean,
             mfmt,

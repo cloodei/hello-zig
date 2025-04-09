@@ -71,17 +71,22 @@ pub fn init_contents(str: []const u8) Error!Self {
 }
 
 /// Deallocate String
-pub fn deinit(this: *Self) void {
+pub fn deinit(this: Self) void {
     this.allocator.free(this.buffer);
 }
 
+
+/// Return the current occupied characters in the String
+pub inline fn size(this: Self) usize {
+    return this.len;
+}
 
 /// Return inner buffer's maximum element occupancy
 pub inline fn capacity(this: Self) usize {
     return this.buffer.len;
 }
 
-/// Return the entire slice of contained elements/characters in the String
+/// Return the entire slice of contained characters in the String
 pub inline fn slice(this: Self) []u8 {
     return this.buffer[0..this.len];
 }
@@ -104,9 +109,9 @@ pub fn concat(this: *Self, string: Self) Error!void {
 
 /// Push `str` to the end of current String
 pub fn concat_str(this: *Self, str: []const u8) Error!void {
-    const n = this.len;
-    try this.resize(n + str.len);
-    @memcpy(this.buffer.ptr + n, str);
+    try this.resize(this.len + str.len);
+    @memcpy(this.buffer.ptr + this.len, str);
+    this.len += str.len;
 }
 
 /// Return a newly allocated, concatenated string between current String and `str`
@@ -231,10 +236,92 @@ pub fn remove_str(this: *Self, substr: []const u8) void {
 
 /// Return a newly allocated, trimmed of all whitespace characters (" ") String from current String
 pub fn to_trim(this: Self) Error!Self {
-    var res = try init_copy(this);
-    res.trim();
+    return to_trim_str(this.slice());
+}
 
-    return res;
+/// Return a newly allocated, trimmed of all whitespace characters (" ") String from `str`
+pub fn to_trim_str(str: []const u8) Error!Self {
+    var i: usize = 0;
+    while(str[i] == ' ') {
+        i += 1;
+        if(i == str.len) {
+            @branchHint(.unlikely);
+            return Self.init(std.heap.smp_allocator);
+        }
+    }
+
+    var j: usize = str.len - 1;
+    while(str[j] == ' ') {
+        j -= 1;
+        if(j == i) {
+            @branchHint(.unlikely);
+            return Self.init(std.heap.smp_allocator);
+        }
+    }
+
+    const n = j - i + 1;
+    const mem = try std.heap.smp_allocator.alloc(u8, n);
+    @memcpy(mem.ptr, str[i..j + 1]);
+
+    return Self {
+        .allocator = std.heap.smp_allocator,
+        .buffer = mem,
+        .len = n,
+    };
+}
+
+/// Return a newly allocated, trimmed of all whitespace characters (" ") at the end of the String
+pub fn to_trim_right(this: Self) Error!Self {
+    return to_trim_right_str(this.slice());
+}
+
+/// Return a newly allocated, trimmed of all whitespace characters (" ") at the end of `str`
+pub fn to_trim_right_str(str: []const u8) Error!Self {
+    var i: usize = str.len - 1;
+    while(str[i] == ' ') {
+        i -= 1;
+        if(i == 0) {
+            @branchHint(.unlikely);
+            return Self.init(std.heap.smp_allocator);
+        }
+    }
+
+    const n = i + 1;
+    const mem = try std.heap.smp_allocator.alloc(u8, n);
+    @memcpy(mem.ptr, str[0..n]);
+
+    return Self {
+        .allocator = std.heap.smp_allocator,
+        .buffer = mem,
+        .len = n,
+    };
+}
+
+/// Return a newly allocated, trimmed of all whitespace characters (" ") at the start of the String
+pub fn to_trim_left(this: Self) Error!Self {
+    return to_trim_left_str(this.slice());
+}
+
+/// Return a newly allocated, trimmed of all whitespace characters (" ") at the start of `str`
+pub fn to_trim_left_str(str: []const u8) Error!Self {
+    var i: usize = 0;
+    while(str[i] == ' ') {
+        i += 1;
+        if(i == str.len) {
+            @branchHint(.unlikely);
+            return Self.init(std.heap.smp_allocator);
+        }
+    }
+
+    const n = str.len - i;
+    const mem = try std.heap.smp_allocator.alloc(u8, n);
+    @memcpy(mem.ptr, str[i..str.len]);
+
+    return Self {
+        .allocator = std.heap.smp_allocator,
+        .buffer = mem,
+        .len = n,
+    };
 }
 
 /// Trim all whitespace characters (" ") at both ends of the String
@@ -265,21 +352,21 @@ pub fn trim_left(this: *Self) void {
 
 /// Trim all whitespace (" ") character at the end of the String
 pub fn trim_right(this: *Self) void {
-    var n = this.len;
-    if(n == 0) {
+    if(this.len == 0) {
         @branchHint(.unlikely);
         return;
     }
-
-    while(this.buffer[n - 1] == ' ') {
-        n -= 1;
-        if(n == 0) {
+    
+    var i = this.len - 1;
+    while(this.buffer[i] == ' ') {
+        i -= 1;
+        if(i == 0) {
             @branchHint(.unlikely);
             break;
         }
     }
 
-    this.len = n;
+    this.len = i;
 }
 
 
@@ -448,11 +535,12 @@ pub fn count(this: Self, substr: Self) usize {
 
 /// Return the number of occurrences of `substr`
 pub fn count_str(this: Self, substr: []const u8) usize {
+    const n = this.len;
     var cnt: usize = 0;
     var start: usize = 0;
 
-    while(start < this.len) {
-        const checkPos = std.mem.indexOfPos(u8, this.slice(), start, substr) orelse break;
+    while(start < n) {
+        const checkPos = std.mem.indexOfPos(u8, this.buffer[0..n], start, substr) orelse break;
         cnt += 1;
         start = checkPos + substr.len;
     }

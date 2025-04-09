@@ -90,7 +90,7 @@ pub fn Stack(comptime T: type) type {
             this.allocator.free(this.items);
         }
 
-        /// Returns inner array's maximum element occupancy
+        /// Returns the underlying array's maximum element occupancy
         pub inline fn capacity(this: Self) usize {
             return this.items.len;
         }
@@ -100,8 +100,8 @@ pub fn Stack(comptime T: type) type {
             return this.len;
         }
 
-        /// Grab the entire Stack as array (does not copy!! both still own the 1 array)
-        pub inline fn arr(this: Self) []T {
+        /// Get the underlying array of the Stack
+        pub inline fn slice(this: Self) []T {
             return this.items[0..this.len];
         }
 
@@ -130,7 +130,7 @@ pub fn Stack(comptime T: type) type {
             if(!this.allocator.resize(this.items, cap)) {
                 const mem = try this.allocator.alloc(T, cap);
                 if(this.len != 0)
-                    @memcpy(mem.ptr, this.arr());
+                    @memcpy(mem.ptr, this.slice());
 
                 this.deinit();
                 this.items = mem;
@@ -160,7 +160,7 @@ pub fn Stack(comptime T: type) type {
                 const newCap: usize = len * 2;
                 if(!this.allocator.resize(this.items, newCap)) {
                     const mem = try this.allocator.alloc(T, newCap);
-                    @memcpy(mem.ptr, this.arr());
+                    @memcpy(mem.ptr, this.slice());
 
                     this.deinit();
                     this.items = mem;
@@ -227,7 +227,7 @@ pub fn Stack(comptime T: type) type {
         /// 
         /// Resizes in-place if possible, else copy resize on overflow
         pub fn append(this: *Self, other: Self) !void {
-            try this.appendArr(other.arr());
+            try this.appendArr(other.slice());
         }
 
         /// Pushes `buffer` at the end of current Stack
@@ -244,7 +244,7 @@ pub fn Stack(comptime T: type) type {
                 const resized: usize = if(extend >= cap) cap + extend + 2 * @log2(cap + extend) else cap * 2;
                 if(!this.allocator.resize(this.items, resized)) {
                     const mem = try this.allocator.alloc(T, resized);
-                    @memcpy(mem.ptr, this.arr());
+                    @memcpy(mem.ptr, this.slice());
 
                     this.deinit();
                     this.items = mem;
@@ -257,7 +257,7 @@ pub fn Stack(comptime T: type) type {
 
         /// Adds `other` Stack at exactly items[`pos`] (allowed from [0..n]), shifting every element above `pos` to accommodate
         pub fn add(this: *Self, other: Self, pos: usize) !void {
-            try this.addArr(other.arr(), pos);
+            try this.addArr(other.slice(), pos);
         }
         
         /// Adds `buffer` at exactly items[`pos`] (allowed from [0..n]), shifting every element above `pos` to accommodate
@@ -401,7 +401,7 @@ pub fn Stack(comptime T: type) type {
         pub fn countSpec(this: Self, target: T, comptime check: fn(a: T, b: T) bool) usize {
             var res: usize = 0;
 
-            for(this.arr()) |thing| {
+            for(this.slice()) |thing| {
                 if(check(thing, target))
                     res += 1;
             }
@@ -434,7 +434,7 @@ pub fn Stack(comptime T: type) type {
                 return;
             }
 
-            @memcpy(buffer.ptr, this.arr());
+            @memcpy(buffer.ptr, this.slice());
         }
 
         /// Copy current Stack into `other` Stack\
@@ -512,8 +512,8 @@ pub fn Stack(comptime T: type) type {
 
         /// Sorts entire Stack in ascending order\
         /// Internally uses HP QuickSort, O(n^2) worst case, O(n log(n)) otherwise, O(log(n)) space. Extensibly optimal and fast
-        pub fn sort(this: *Self) void {
-            sorts.quick_sort_functional(T, this.arr(), lt);
+        pub fn sort(this: Self) void {
+            sorts.quick_sort_functional(T, this.slice(), lt);
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted in ascending order\
@@ -539,8 +539,8 @@ pub fn Stack(comptime T: type) type {
         /// 
         /// If comparison between a vs b returns true: a then b, false: b then a\
         /// Less than operator (a < b) sorts ascending, greater than sorts descending
-        pub fn sortSpec(this: *Self, comptime comp: fn(T, T) bool) void {
-            sorts.quick_sort_functional(T, this.arr(), comp);
+        pub fn sortSpec(this: Self, comptime comp: fn(T, T) bool) void {
+            sorts.quick_sort_functional(T, this.slice(), comp);
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted according to comparator\
@@ -569,8 +569,8 @@ pub fn Stack(comptime T: type) type {
 
         /// Sorts entire Stack in ascending order\
         /// Internally uses LSD RadixSort, O(n * d) time, O(n) space. Fastest possible sort for purely integer Stack
-        pub fn sortInt(this: *Self) void {
-            sorts.radixSort(T, this.arr());
+        pub fn sortInt(this: Self) void {
+            sorts.radixSort(T, this.slice());
         }
 
         /// Return a new Stack as an allocated copy of current Stack, sorted in ascending order\
