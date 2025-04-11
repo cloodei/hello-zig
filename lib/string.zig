@@ -390,6 +390,17 @@ pub fn find_str(this: Self, substr: []const u8) ?usize {
     return std.mem.indexOf(u8, this.slice(), substr);
 }
 
+/// Return if the String contains `other`, `true` if the String contains `other`, else `false`
+pub fn contains(this: Self, other: Self) bool {
+    return this.contains_str(other.slice());
+}
+
+/// Return if the String contains `substr`, `true` if the String contains `substr`, else `false`
+pub fn contains_str(this: Self, substr: []const u8) bool {
+    return this.find_str(substr) != null;
+}
+
+
 /// Return a new string with all occurrences of `from` replaced with `to`
 pub fn replace(this: Self, from: []const u8, to: []const u8) Error!Self {
     const n = this.len;
@@ -489,6 +500,35 @@ pub fn upper(this: *Self) void {
     for(0..this.len) |i|
         this.buffer[i] = to_upper(this.buffer[i]);
 }
+
+/// Return a new allocated string with all characters of `str` converted to lowercase
+pub fn to_lower_str(str: []const u8) Error!Self {
+    const n = str.len;
+    const mem = try std.heap.smp_allocator.alloc(u8, n);
+    for(0..n) |i|
+        mem[i] = to_lower(str[i]);
+
+    return Self {
+        .allocator = std.heap.smp_allocator,
+        .buffer = mem,
+        .len = n,
+    };
+}
+
+/// Return a new allocated string with all characters of `str` converted to uppercase
+pub fn to_upper_str(str: []const u8) Error!Self {
+    const n = str.len;
+    const mem = try std.heap.smp_allocator.alloc(u8, n);
+    for(0..n) |i|
+        mem[i] = to_upper(str[i]);
+
+    return Self {
+        .allocator = std.heap.smp_allocator,
+        .buffer = mem,
+        .len = n,
+    };
+}
+
 
 
 /// Return whether current String starts with `prefix`
