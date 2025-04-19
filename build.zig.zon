@@ -15,6 +15,10 @@
             .url = "https://github.com/karlseguin/zul/archive/master.tar.gz",
             .hash = "zul-0.0.0-1oDot0BCBwA9cUo5OOrPs5NGmvoM7sk1ztfbdfL7mh4P"
         },
+        .zzz = .{
+            .url = "git+https://github.com/tardy-org/zzz#18ec7f1129ce4d0573b7c67f011b4d05c7b195d4",
+            .hash = "zzz-0.3.0-4HoaJrBQAgCXB_66nre0nvYZmAXMxj__gS8sFjpR68Hs",
+        },
     },
     .paths = .{
         "src",

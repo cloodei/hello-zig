@@ -44,6 +44,13 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("zul", zul.module("zul"));
 
+    const zzz = b.dependency("zzz", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("zzz");
+    exe.root_module.addImport("zzz", zzz);
+
+
     exe.linkLibC();
 
     const stack_mod = b.createModule(.{
