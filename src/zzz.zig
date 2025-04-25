@@ -15,7 +15,7 @@ const Context = http.Context;
 const Respond = http.Respond;
 
 
-fn base_handler(ctx: Context, _: void) !Respond {
+fn base_handler(ctx: *const Context, _: void) !Respond {
     return ctx.response.apply(.{
         .status = .OK,
         .mime = http.Mime.HTML,
@@ -23,9 +23,9 @@ fn base_handler(ctx: Context, _: void) !Respond {
     });
 }
 
-pub fn main() !void {
+pub fn run() !void {
     const host: []const u8 = "0.0.0.0";
-    const port: u16 = 9862;
+    const port: u16 = 8080;
 
     var dba = std.heap.DebugAllocator(.{ .thread_safe = true }).init;
     const allocator = dba.allocator();
@@ -50,7 +50,7 @@ pub fn main() !void {
     };
 
     try t.entry(
-        EntryParams{ .router = &router, .socket = socket },
+        EntryParams { .router = &router, .socket = socket },
         struct {
             fn entry(rt: *Runtime, p: EntryParams) !void {
                 var server = Server.init(.{

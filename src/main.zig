@@ -3,6 +3,7 @@ const zzz = @import("zzz");
 const env = @import("env.zig");
 const rand = @import("rand");
 const utils = @import("utils");
+const zzzig = @import("zzz.zig");
 const sorts = @import("sorts");
 const String = @import("string");
 const search = @import("search.zig");

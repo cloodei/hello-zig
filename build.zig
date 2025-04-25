@@ -28,7 +28,7 @@ pub fn build(b: *std.Build) void {
 
     const pg = b.dependency("pg", .{
         .target = target,
-        .optimize = optimize,
+        .optimize = optimize
     });
     exe.root_module.addImport("pg", pg.module("pg"));
 
@@ -46,10 +46,10 @@ pub fn build(b: *std.Build) void {
 
     const zzz = b.dependency("zzz", .{
         .target = target,
-        .optimize = optimize,
+        .optimize = optimize
     }).module("zzz");
     exe.root_module.addImport("zzz", zzz);
-
+    
 
     exe.linkLibC();
 

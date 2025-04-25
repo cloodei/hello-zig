@@ -13,7 +13,7 @@
         },
         .zul = .{
             .url = "https://github.com/karlseguin/zul/archive/master.tar.gz",
-            .hash = "zul-0.0.0-1oDot0BCBwA9cUo5OOrPs5NGmvoM7sk1ztfbdfL7mh4P"
+            .hash = "zul-0.0.0-1oDotyJMBwBli3UBm47WYeNZSMNni_DbkT-jTtDpowDW"
         },
         .zzz = .{
             .url = "git+https://github.com/tardy-org/zzz#18ec7f1129ce4d0573b7c67f011b4d05c7b195d4",
